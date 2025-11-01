@@ -2,31 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>The Daily Grind & Dough Co. — Admin</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif; }
-    .status-badge { padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 700; }
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif}
+    .chip{padding:.45rem .9rem;border-radius:9999px;font-weight:700;font-size:.8rem}
+    .chip-active{box-shadow:0 0 0 2px rgba(245,158,11,.7) inset;background:#fff}
   </style>
-
-  <!-- Same branding normalizer -->
   <script>
-    const RAW_LOGO = "https://github.com/vsaipavan6/cafe/blob/main/logo.png";
-    const toRaw = (url) => {
-      try {
-        if (!url) return "";
-        if (/raw\.githubusercontent\.com|^\.?\/|^https?:\/\/[^/]+\.github\.io/.test(url)) return url;
-        if (/https?:\/\/github\.com\/.+\/blob\//.test(url)) {
-          return url.replace("https://github.com/","https://raw.githubusercontent.com/").replace("/blob/","/");
-        }
-        return url;
-      } catch { return url; }
-    };
-    const LOGO_URL = toRaw(RAW_LOGO) || "logo.png";
+    // same branding
+    const RAW_LOGO="https://github.com/vsaipavan6/cafe/blob/main/logo.png";
+    const toRaw=(url)=>{try{if(!url)return"";if(/raw\.githubusercontent\.com|^\.?\/|^https?:\/\/[^/]+\.github\.io/.test(url))return url;if(/https?:\/\/github\.com\/.+\/blob\//.test(url))return url.replace("https://github.com/","https://raw.githubusercontent.com/").replace("/blob/","/");return url}catch{return url}};
+    const LOGO_URL=toRaw(RAW_LOGO)||"logo.png";
   </script>
-
   <link id="dynamic-favicon" rel="icon" type="image/png" href=""/>
 </head>
 <body class="bg-gradient-to-br from-amber-50 to-orange-50 min-h-screen">
@@ -34,125 +24,126 @@
   <header class="bg-gradient-to-r from-amber-700 to-orange-600 text-white p-4 sm:p-6 shadow-lg sticky top-0 z-20">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
       <div class="flex items-center gap-3">
-        <img id="logoImg" alt="Cafe Logo" class="w-10 h-10 rounded-full ring-2 ring-white/80 shadow-md object-cover"/>
+        <img id="logoImg" class="w-10 h-10 rounded-full ring-2 ring-white/80 shadow-md object-cover" alt="Cafe Logo"/>
         <div>
           <h1 class="text-xl sm:text-2xl font-extrabold leading-tight">Admin — The Daily Grind & Dough Co.</h1>
-          <p class="text-xs sm:text-sm text-amber-100">Live orders · auto-refresh every 5 minutes</p>
+          <p class="text-xs sm:text-sm text-amber-100">Live orders • auto-refresh every 5 minutes</p>
         </div>
       </div>
       <div class="flex items-center gap-3">
-        <button id="refreshBtn" type="button" class="bg-white text-amber-700 px-4 py-2 rounded-lg shadow hover:shadow-md hover:bg-amber-50 transition flex items-center gap-2">
-          <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
+        <a href="order-history.html" class="bg-white/95 text-amber-700 px-3 py-2 rounded-lg shadow hover:shadow-md hover:bg-white transition">Order History</a>
+        <button id="last24Btn" class="bg-white/95 text-amber-700 px-3 py-2 rounded-lg shadow hover:shadow-md hover:bg-white transition flex items-center gap-2">
+          <i data-lucide="clock" class="w-4 h-4"></i>Last 24 Hours
+        </button>
+        <button id="refreshBtn" class="bg-white/95 text-amber-700 px-3 py-2 rounded-lg shadow hover:shadow-md hover:bg-white transition flex items-center gap-2">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>Refresh
         </button>
         <span id="lastRefreshed" class="text-amber-100 text-xs"></span>
       </div>
     </div>
   </header>
 
-  <!-- Content -->
-  <main class="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-    <!-- Filters -->
-    <section class="bg-white rounded-2xl shadow-md p-4 sm:p-6">
-      <div class="flex flex-wrap items-center gap-3">
-        <select id="filterPayment" class="border rounded-lg px-3 py-2">
-          <option value="">All Payments</option>
-          <option value="pending">Payment: Pending</option>
-          <option value="paid">Payment: Paid</option>
-          <option value="online">Method: Online</option>
-          <option value="counter">Method: Counter</option>
-        </select>
-        <select id="filterStatus" class="border rounded-lg px-3 py-2">
-          <option value="">All Status</option>
-          <option value="new">New</option>
-          <option value="completed">Completed</option>
-          <option value="canceled">Canceled</option>
-        </select>
-        <input id="searchBox" placeholder="Search name/table…" class="border rounded-lg px-3 py-2 flex-1 min-w-[200px]"/>
-      </div>
-    </section>
+  <!-- Filters -->
+  <section class="max-w-6xl mx-auto p-4 sm:p-6">
+    <div id="chips" class="flex flex-wrap gap-2">
+      <!-- chips generated by JS -->
+    </div>
+    <div class="mt-3">
+      <input id="searchBox" placeholder="Search name / table…" class="border rounded-lg px-3 py-2 w-full sm:w-80"/>
+    </div>
+  </section>
 
-    <!-- Orders -->
+  <!-- Orders -->
+  <main class="max-w-6xl mx-auto p-4 sm:p-6">
     <section class="bg-white rounded-2xl shadow-md p-2 sm:p-4">
       <div id="ordersList" class="divide-y"></div>
     </section>
   </main>
 
+  <!-- Last 24h Modal -->
+  <div id="last24Modal" class="hidden fixed inset-0 bg-black/60 z-30 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-4 sm:p-6 max-w-3xl w-[92%] shadow-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-bold text-gray-800">Transactions — last 24 hours</h3>
+        <button id="close24Btn" class="text-gray-600 hover:text-gray-800"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div id="last24Body" class="max-h-[70vh] overflow-y-auto"></div>
+    </div>
+  </div>
+
   <script>
-    /* ---------- ICON & BRAND ---------- */
-    const basketSVG = (size=20) => `
-      <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M3 10h18l-1.2 9a3 3 0 0 1-3 2.6H7.2A3 3 0 0 1 4.2 19L3 10Z" fill="#F59E0B"/>
-        <path d="M6 10c0-3 2.7-6 6-6s6 3 6 6" stroke="#92400E" stroke-width="2" stroke-linecap="round"/>
-        <path d="M7 14h10M6 17h12" stroke="#B45309" stroke-width="2" stroke-linecap="round"/>
-        <path d="M9.5 6c.6-.9 1.8-1.5 2.5-1.5M7.5 8C8.3 6.9 9.2 6.4 10 6.1" stroke="#FDE68A" stroke-width="2" stroke-linecap="round"/>
-      </svg>`;
+    // Icons + branding
+    function initBrand(){const logo=document.getElementById('logoImg');const fav=document.getElementById('dynamic-favicon');const setSrc=(img,url,fallback)=>{if(!img)return;img.src=url||fallback;img.onerror=()=>{if(fallback)img.src=fallback;};};setSrc(logo,LOGO_URL,"logo.png");if(fav)fav.href=LOGO_URL||"favicon.png";}
+    const basketSVG=(s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 10h18l-1.2 9a3 3 0 0 1-3 2.6H7.2A3 3 0 0 1 4.2 19L3 10Z" fill="#F59E0B"/><path d="M6 10c0-3 2.7-6 6-6s6 3 6 6" stroke="#92400E" stroke-width="2" stroke-linecap="round"/><path d="M7 14h10M6 17h12" stroke="#B45309" stroke-width="2" stroke-linecap="round"/><path d="M9.5 6c.6-.9 1.8-1.5 2.5-1.5M7.5 8C8.3 6.9 9.2 6.4 10 6.1" stroke="#FDE68A" stroke-width="2" stroke-linecap="round"/></svg>`;
 
-    function initBrand(){
-      const logo = document.getElementById('logoImg');
-      const fav  = document.getElementById('dynamic-favicon');
-      const setSrc = (img, url, fallback) => { if (!img) return; img.src=url||fallback; img.onerror=()=>{ if(fallback) img.src=fallback; }; };
-      setSrc(logo, LOGO_URL, "logo.png");
-      if (fav) fav.href = LOGO_URL || "favicon.png";
+    // Storage
+    const ORDERS_KEY='cafe_orders';
+    const HISTORY_KEY='cafe_orders_history';
+    const PING_KEY='cafe_orders__ping';
+    const ch=('BroadcastChannel'in window)?new BroadcastChannel('cafe_orders'):null;
+
+    const loadOrders =()=>JSON.parse(localStorage.getItem(ORDERS_KEY)||'[]');
+    const saveOrders =(o)=>localStorage.setItem(ORDERS_KEY,JSON.stringify(o));
+    const loadHistory=()=>JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+    const saveHistory=(h)=>localStorage.setItem(HISTORY_KEY,JSON.stringify(h));
+    const ping=()=>localStorage.setItem(PING_KEY,JSON.stringify({t:Date.now(),type:'admin-refresh'}));
+
+    // Chips
+    const CHIP_DEFS=[
+      {id:'all', label:'All', test:()=>true},
+      {id:'pay-pending', label:'Payment Pending', test:o=>o.payment?.status!=='paid'},
+      {id:'pay-paid', label:'Payment Paid', test:o=>o.payment?.status==='paid'},
+      {id:'method-online', label:'Method: Online', test:o=>o.payment?.method==='online'},
+      {id:'method-counter', label:'Method: Counter', test:o=>o.payment?.method==='counter'},
+      {id:'status-new', label:'Status: New', test:o=>o.status==='new'},
+      {id:'status-served', label:'Status: Served', test:o=>o.status==='served'}, // rarely in active list; served goes to history
+    ];
+    let activeChip='all';
+
+    function makeChip(id,label){
+      return `<button data-chip="${id}" class="chip bg-white/95 text-amber-700 shadow ${id===activeChip?'chip-active':''}">${label}</button>`;
     }
 
-    /* ---------- STORAGE & CHANNEL ---------- */
-    const ORDERS_KEY = 'cafe_orders';
-    const ch = ('BroadcastChannel' in window) ? new BroadcastChannel('cafe_orders') : null;
-
-    const loadOrders = () => JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
-    const saveOrders = (orders) => localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
-
-    /* ---------- RENDER ---------- */
-    function badge(text, color) {
-      const map = {
-        green: 'bg-green-100 text-green-700',
-        red: 'bg-red-100 text-red-700',
-        amber: 'bg-amber-100 text-amber-700',
-        gray: 'bg-gray-100 text-gray-700'
-      };
-      return `<span class="status-badge ${map[color]||map.gray}">${text}</span>`;
+    function renderChips(){
+      const wrap=document.getElementById('chips');
+      wrap.innerHTML=CHIP_DEFS.map(c=>makeChip(c.id,c.label)).join('');
+      wrap.querySelectorAll('[data-chip]').forEach(btn=>{
+        btn.addEventListener('click',()=>{activeChip=btn.dataset.chip; renderOrders(); renderChips();});
+      });
     }
+
+    // Render
+    function badge(text,color){const map={green:'bg-green-100 text-green-700',red:'bg-red-100 text-red-700',amber:'bg-amber-100 text-amber-700',gray:'bg-gray-100 text-gray-700'};return `<span class="px-2 py-0.5 rounded-full text-xs font-bold ${map[color]||map.gray}">${text}</span>`;}
 
     function renderOrders(){
-      const list = document.getElementById('ordersList');
-      const orders = loadOrders();
+      const list=document.getElementById('ordersList');
+      const orders=loadOrders();
+      const chip=CHIP_DEFS.find(c=>c.id===activeChip) || CHIP_DEFS[0];
+      const q=(document.getElementById('searchBox').value||'').toLowerCase();
 
-      // Filters
-      const qPay = document.getElementById('filterPayment').value;
-      const qStatus = document.getElementById('filterStatus').value;
-      const qText = document.getElementById('searchBox').value.trim().toLowerCase();
-
-      const filtered = orders.filter(o => {
-        let ok = true;
-        if (qPay === 'pending') ok = ok && (o.payment?.status === 'pending');
-        else if (qPay === 'paid') ok = ok && (o.payment?.status === 'paid');
-        else if (qPay === 'online') ok = ok && (o.payment?.method === 'online');
-        else if (qPay === 'counter') ok = ok && (o.payment?.method === 'counter');
-
-        if (qStatus) ok = ok && (o.status === qStatus);
-
-        if (qText) {
-          const blob = `${o.customerName} ${o.tableNumber}`.toLowerCase();
-          ok = ok && blob.includes(qText);
+      const filtered=orders.filter(o=>{
+        let ok=chip.test(o);
+        if(q){
+          const blob=`${o.customerName} ${o.tableNumber} ${o.id}`.toLowerCase();
+          ok = ok && blob.includes(q);
         }
         return ok;
       });
 
-      list.innerHTML = filtered.map(o => `
+      list.innerHTML = filtered.map(o=>`
         <div class="p-4 sm:p-5">
           <div class="flex flex-wrap justify-between items-start gap-3">
-            <div class="flex items-center gap-2">
-              ${basketSVG(20)}
+            <div class="flex items-center gap-2">${basketSVG(20)}
               <div>
                 <div class="font-bold text-gray-900">#${o.id}</div>
                 <div class="text-xs text-gray-500">${new Date(o.timestamp).toLocaleString()}</div>
               </div>
             </div>
             <div class="flex flex-wrap gap-2">
-              ${badge(o.status==='new' ? 'NEW' : o.status.toUpperCase(), o.status==='new'?'amber':(o.status==='completed'?'green':(o.status==='canceled'?'red':'gray')))}
+              ${badge(o.status==='new'?'NEW':o.status.toUpperCase(), o.status==='new'?'amber':'gray')}
               ${badge(`Pay: ${o.payment?.status||'pending'}`, o.payment?.status==='paid'?'green':'amber')}
-              ${badge(`${o.payment?.method==='counter'?'Counter':'Online'}`, 'gray')}
-              ${badge(`Total ₹${o.totals?.total||0}`, 'gray')}
+              ${badge(o.payment?.method==='counter'?'Counter':'Online','gray')}
+              ${badge(`Total ₹${o.totals?.total||0}`,'gray')}
             </div>
           </div>
 
@@ -161,9 +152,8 @@
               <div class="font-semibold text-amber-900">Customer</div>
               <div class="text-gray-800">${o.customerName}</div>
               <div class="text-gray-600">Table: ${o.tableNumber}</div>
-              ${o.notes ? `<div class="text-gray-600 mt-1">Notes: ${o.notes}</div>`:''}
+              ${o.notes?`<div class="text-gray-600 mt-1">Notes: ${o.notes}</div>`:''}
             </div>
-
             <div class="sm:col-span-2 bg-gray-50 rounded-lg p-3">
               <div class="font-semibold text-gray-900 mb-1">Items</div>
               <ul class="list-disc pl-5 space-y-1">
@@ -176,62 +166,86 @@
           </div>
 
           <div class="mt-3 flex flex-wrap gap-2 justify-end">
-            <button class="px-3 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" onclick="markPaid('${o.id}')">
-              <i data-lucide="badge-check" class="w-4 h-4 inline-block mr-1"></i> Mark Paid
-            </button>
-            <button class="px-3 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" onclick="markCompleted('${o.id}')">
-              <i data-lucide="check" class="w-4 h-4 inline-block mr-1"></i> Mark Completed
-            </button>
-            <button class="px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50" onclick="markCanceled('${o.id}')">
-              <i data-lucide="x-circle" class="w-4 h-4 inline-block mr-1"></i> Cancel
-            </button>
+            <button class="px-3 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" onclick="markPaid('${o.id}')"><i data-lucide="badge-check" class="w-4 h-4 inline-block mr-1"></i>Mark Paid</button>
+            <button class="px-3 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" onclick="markCompleted('${o.id}')"><i data-lucide="check" class="w-4 h-4 inline-block mr-1"></i>Mark Completed</button>
+            <button class="px-3 py-2 rounded-lg border text-amber-700 border-amber-300 hover:bg-amber-50" onclick="markServed('${o.id}')"><i data-lucide="chef-hat" class="w-4 h-4 inline-block mr-1"></i>Served</button>
+            <button class="px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50" onclick="markCanceled('${o.id}')"><i data-lucide="x-circle" class="w-4 h-4 inline-block mr-1"></i>Cancel</button>
           </div>
         </div>
-      `).join('') || '<div class="p-6 text-center text-gray-500">No orders yet.</div>';
+      `).join('') || '<div class="p-6 text-center text-gray-500">No orders.</div>';
 
+      document.getElementById('lastRefreshed').textContent=`Updated: ${new Date().toLocaleTimeString()}`;
       lucide.createIcons();
-      document.getElementById('lastRefreshed').textContent = `Updated: ${new Date().toLocaleTimeString()}`;
     }
 
-    /* ---------- ACTIONS ---------- */
-    function updateOrder(id, mutator){
-      const orders = loadOrders();
-      const idx = orders.findIndex(o => o.id === id);
-      if (idx === -1) return;
-      mutator(orders[idx]);
-      saveOrders(orders);
-      renderOrders();
+    // Mutations
+    function updateOrder(id, fn){
+      const orders=loadOrders();
+      const i=orders.findIndex(o=>o.id===id); if(i===-1)return;
+      fn(orders[i]); saveOrders(orders); renderOrders();
     }
-    function markPaid(id){ updateOrder(id, o => { o.payment.status = 'paid'; }); }
-    function markCompleted(id){ updateOrder(id, o => { o.status = 'completed'; }); }
-    function markCanceled(id){ updateOrder(id, o => { o.status = 'canceled'; }); }
+    function markPaid(id){ updateOrder(id, o=>{o.payment.status='paid';}); }
+    function markCompleted(id){ updateOrder(id, o=>{o.status='completed';}); }
+    function markCanceled(id){ updateOrder(id, o=>{o.status='canceled';}); }
 
-    /* ---------- LIVE UPDATES ---------- */
-    // 1) BroadcastChannel (immediate)
-    const ch = ('BroadcastChannel' in window) ? new BroadcastChannel('cafe_orders') : null;
-    if (ch) ch.onmessage = (ev) => { if (ev?.data?.type === 'new-order') renderOrders(); };
+    // Served → move to history, keep 1 year
+    function markServed(id){
+      const orders=loadOrders();
+      const idx=orders.findIndex(o=>o.id===id); if(idx===-1) return;
+      const o=orders[idx]; o.status='served'; o.servedAt=new Date().toISOString();
+      orders.splice(idx,1); saveOrders(orders);
 
-    // 2) storage event (fires when other tab changes localStorage)
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'cafe_orders' || e.key === 'cafe_orders__ping') renderOrders();
-    });
-
-    // 3) polling every 5 minutes
-    setInterval(renderOrders, 5 * 60 * 1000);
-
-    /* ---------- FILTERS & INIT ---------- */
-    document.addEventListener('DOMContentLoaded', () => {
-      initBrand();
-      lucide.createIcons();
-      document.getElementById('dynamic-favicon').href = LOGO_URL || 'favicon.png';
-
-      ['filterPayment','filterStatus','searchBox'].forEach(id=>{
-        document.getElementById(id)?.addEventListener('change', renderOrders);
-        document.getElementById(id)?.addEventListener('input', renderOrders);
-      });
-      document.getElementById('refreshBtn')?.addEventListener('click', renderOrders);
+      const hist=loadHistory();
+      hist.unshift(o);
+      // purge > 365 days
+      const cutoff=Date.now()-365*24*3600*1000;
+      const kept=hist.filter(x=> new Date(x.servedAt||x.timestamp).getTime() >= cutoff);
+      saveHistory(kept);
 
       renderOrders();
+      // notify other tabs
+      if(ch) ch.postMessage({type:'served',id});
+      localStorage.setItem('cafe_history__ping', JSON.stringify({t:Date.now(),type:'served'}));
+    }
+
+    // Last 24h modal
+    function openLast24(){
+      const body=document.getElementById('last24Body');
+      const hist=loadHistory();
+      const since=Date.now()-24*3600*1000;
+      const recent=hist.filter(h=>new Date(h.servedAt||h.timestamp).getTime()>=since);
+
+      body.innerHTML = recent.length ? recent.map(h=>`
+        <div class="p-3 border-b">
+          <div class="flex justify-between items-center">
+            <div class="font-bold text-gray-900">#${h.id} · ₹${h.totals?.total||0}</div>
+            <div class="text-xs text-gray-600">${new Date(h.servedAt||h.timestamp).toLocaleString()}</div>
+          </div>
+          <div class="text-sm text-gray-800">${h.customerName} — Table ${h.tableNumber} — ${h.payment?.method} / ${h.payment?.status}</div>
+          <div class="text-xs text-gray-600">${h.items.map(i=>`${i.name}×${i.quantity}`).join(', ')}</div>
+        </div>
+      `).join('') : '<div class="p-6 text-center text-gray-500">No transactions in last 24 hours.</div>';
+
+      document.getElementById('last24Modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+    const closeLast24=()=>document.getElementById('last24Modal').classList.add('hidden');
+
+    // Live updates
+    if(ch) ch.onmessage=(ev)=>{ if(ev?.data?.type==='new-order') renderOrders(); };
+    window.addEventListener('storage',(e)=>{ if([ORDERS_KEY,PING_KEY,'cafe_history__ping'].includes(e.key)) renderOrders(); });
+    setInterval(renderOrders,5*60*1000);
+
+    // Init
+    document.addEventListener('DOMContentLoaded',()=>{
+      initBrand(); lucide.createIcons();
+      document.getElementById('dynamic-favicon').href=LOGO_URL||'favicon.png';
+      renderChips(); renderOrders();
+
+      document.getElementById('searchBox')?.addEventListener('input',renderOrders);
+      document.getElementById('refreshBtn')?.addEventListener('click',renderOrders);
+      document.getElementById('last24Btn')?.addEventListener('click',openLast24);
+      document.getElementById('close24Btn')?.addEventListener('click',closeLast24);
     });
   </script>
 </body>
