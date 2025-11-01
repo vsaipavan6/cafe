@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>The Daily Grind & Dough Co. — Digital Menu</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
+    body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif; }
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
   </style>
 
-  <!-- Brand assets (keep your GitHub links; we normalize them to RAW, with local fallbacks) -->
+  <!-- Normalize GitHub blob -> raw URLs -->
   <script>
     const RAW_LOGO   = "https://github.com/vsaipavan6/cafe/blob/main/logo.png";
     const RAW_WIFIQR = "https://github.com/vsaipavan6/cafe/blob/main/wifi.jpg";
@@ -22,7 +22,7 @@
         if (!url) return "";
         if (/raw\.githubusercontent\.com|^\.?\/|^https?:\/\/[^/]+\.github\.io/.test(url)) return url;
         if (/https?:\/\/github\.com\/.+\/blob\//.test(url)) {
-          return url.replace("https://github.com/", "https://raw.githubusercontent.com/").replace("/blob/", "/");
+          return url.replace("https://github.com/","https://raw.githubusercontent.com/").replace("/blob/","/");
         }
         return url;
       } catch { return url; }
@@ -41,7 +41,7 @@
   <header class="bg-gradient-to-r from-amber-700 to-orange-600 text-white p-4 sm:p-6 shadow-lg sticky top-0 z-20">
     <div class="max-w-5xl mx-auto flex justify-between items-center gap-3">
       <div class="flex items-center gap-3">
-        <img id="logoImg" src="" alt="Cafe Logo" class="w-12 h-12 rounded-full ring-2 ring-white/80 shadow-md object-cover" />
+        <img id="logoImg" alt="Cafe Logo" class="w-12 h-12 rounded-full ring-2 ring-white/80 shadow-md object-cover"/>
         <div>
           <h1 class="text-xl sm:text-2xl font-extrabold leading-tight">The Daily Grind & Dough Co.</h1>
           <p class="text-xs sm:text-sm text-amber-100">Scan • Order • Enjoy</p>
@@ -49,12 +49,14 @@
       </div>
 
       <div class="flex items-center gap-2 sm:gap-4">
+        <!-- Search -->
         <div class="hidden sm:flex items-center bg-white/95 text-gray-700 rounded-full px-3 py-2 shadow-inner">
           <i data-lucide="search" class="w-4 h-4 mr-2"></i>
-          <input id="searchInput" type="text" placeholder="Search menu…" class="bg-transparent outline-none placeholder:text-gray-400 w-40" />
+          <input id="searchInput" type="text" placeholder="Search menu…" class="bg-transparent outline-none placeholder:text-gray-400 w-40"/>
         </div>
 
-        <button onclick="toggleCart()" class="relative bg-white text-amber-700 p-3 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition" aria-label="Open cart">
+        <!-- Cart (bread basket) -->
+        <button id="openCartBtn" type="button" class="relative bg-white text-amber-700 p-3 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition" aria-label="Open cart">
           <span id="headerBasket" class="inline-block w-6 h-6"></span>
           <span id="cartBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold"></span>
         </button>
@@ -66,15 +68,15 @@
     </div>
   </header>
 
-  <!-- Promo / Hero -->
+  <!-- Hero -->
   <section class="max-w-5xl mx-auto p-4 sm:p-6">
     <div class="bg-white rounded-2xl shadow-md p-5 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
-      <img id="heroLogo" src="" class="w-28 h-28 rounded-full ring-4 ring-amber-100 shadow object-cover" alt="Cafe Logo"/>
+      <img id="heroLogo" class="w-28 h-28 rounded-full ring-4 ring-amber-100 shadow object-cover" alt="Cafe Logo"/>
       <div class="flex-1">
         <h2 class="text-2xl sm:text-3xl font-bold text-amber-800 mb-2">Welcome to The Daily Grind & Dough Co.</h2>
         <p class="text-gray-600">Authentic Italian-inspired coffee, fresh bakes, and quick bites. Tap to add, customize quantities, and pay at the counter or via UPI/QR (integration-ready).</p>
         <div class="mt-4 flex flex-wrap gap-3 text-sm">
-          <button id="wifiChip" class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 transition cursor-pointer">Free Wi-Fi</button>
+          <button id="wifiChip" type="button" class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 transition cursor-pointer">Free Wi-Fi</button>
           <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800">Freshly Baked Daily</span>
           <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800">Vegetarian Options</span>
           <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800">Takeaway Available</span>
@@ -83,7 +85,7 @@
     </div>
   </section>
 
-  <!-- Menu Container -->
+  <!-- Menu -->
   <main id="menuContainer" class="max-w-5xl mx-auto p-4 sm:p-6 pb-32"></main>
 
   <!-- Cart Sidebar -->
@@ -95,7 +97,7 @@
             <span id="panelBasket" class="inline-block w-6 h-6"></span>
             <h2 class="text-2xl font-bold text-gray-800 leading-tight">Your Order</h2>
           </div>
-          <button onclick="closeCart()" class="text-gray-500 hover:text-gray-700" aria-label="Close cart">
+          <button id="closeCartBtn" type="button" class="text-gray-500 hover:text-gray-700" aria-label="Close cart">
             <i data-lucide="x" class="w-6 h-6"></i>
           </button>
         </div>
@@ -104,48 +106,41 @@
 
         <div id="cartTotal" class="hidden border-t pt-4 mb-6 space-y-3">
           <div class="flex justify-between items-center text-lg font-semibold">
-            <span>Subtotal</span>
-            <span class="text-amber-700">₹<span id="subtotalAmount">0</span></span>
+            <span>Subtotal</span><span class="text-amber-700">₹<span id="subtotalAmount">0</span></span>
           </div>
           <div class="flex justify-between items-center text-sm text-gray-600">
-            <span>Service Charge (5%)</span>
-            <span>₹<span id="svcAmount">0</span></span>
+            <span>Service Charge (5%)</span><span>₹<span id="svcAmount">0</span></span>
           </div>
           <div class="flex justify-between items-center text-sm text-gray-600">
-            <span>Tax (GST 5%)</span>
-            <span>₹<span id="taxAmount">0</span></span>
+            <span>Tax (GST 5%)</span><span>₹<span id="taxAmount">0</span></span>
           </div>
           <div class="flex justify-between items-center text-xl font-extrabold">
-            <span>Total</span>
-            <span class="text-amber-600">₹<span id="totalAmount">0</span></span>
+            <span>Total</span><span class="text-amber-600">₹<span id="totalAmount">0</span></span>
           </div>
         </div>
 
         <div id="customerForm" class="hidden space-y-3 mb-6">
           <div class="grid grid-cols-2 gap-3">
-            <input type="text" id="customerName" placeholder="Your Name" class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
-            <input type="text" id="tableNumber" placeholder="Table Number (or Takeaway)" class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            <input id="customerName" placeholder="Your Name" class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            <input id="tableNumber" placeholder="Table Number (or Takeaway)" class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
           </div>
           <textarea id="orderNotes" rows="2" placeholder="Add a note (no onions, extra hot, etc.)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"></textarea>
         </div>
 
         <div class="flex items-center justify-between mb-4">
-          <button id="clearCartBtn" class="hidden text-sm text-red-600 hover:underline" onclick="clearCart()">Clear cart</button>
-          <div class="text-xs sm:text-sm text-gray-500">
-            <span class="mr-2">Choose a payment option:</span>
-          </div>
+          <button id="clearCartBtn" type="button" class="hidden text-sm text-red-600 hover:underline">Clear cart</button>
+          <div class="text-xs sm:text-sm text-gray-500"><span class="mr-2">Choose a payment option:</span></div>
         </div>
 
-        <!-- Two actions: online/pending or counter/pending -->
+        <!-- Two actions -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button id="payCounterBtn" class="hidden w-full bg-white text-amber-700 border border-amber-600 py-3 rounded-xl font-bold hover:bg-amber-50 transition shadow-sm">
+          <button id="payCounterBtn" type="button" class="hidden w-full bg-white text-amber-700 border border-amber-600 py-3 rounded-xl font-bold hover:bg-amber-50 transition shadow-sm">
             Pay at Counter
           </button>
-          <button id="paymentBtn" class="hidden w-full bg-gradient-to-r from-amber-600 to-orange-600 text-white py-3 rounded-xl font-bold hover:from-amber-700 hover:to-orange-700 transition shadow-lg">
+          <button id="paymentBtn" type="button" class="hidden w-full bg-gradient-to-r from-amber-600 to-orange-600 text-white py-3 rounded-xl font-bold hover:from-amber-700 hover:to-orange-700 transition shadow-lg">
             Pay Online
           </button>
         </div>
-
       </div>
     </aside>
   </div>
@@ -155,11 +150,11 @@
     <div class="bg-white rounded-2xl p-4 sm:p-6 max-w-xs sm:max-w-md w-[90%] shadow-2xl" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-lg font-bold text-gray-800">Free Wi-Fi</h3>
-        <button onclick="closeWifiModal()" class="text-gray-500 hover:text-gray-700" aria-label="Close Wi-Fi modal">
+        <button id="closeWifiBtn" type="button" class="text-gray-500 hover:text-gray-700" aria-label="Close Wi-Fi modal">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <img id="wifiImg" src="" alt="Wi-Fi QR Code" class="w-full rounded-lg border border-gray-200"/>
+      <img id="wifiImg" alt="Wi-Fi QR Code" class="w-full rounded-lg border border-gray-200"/>
       <p class="text-xs text-gray-500 mt-2">Scan this QR to connect to Wi-Fi.</p>
     </div>
   </div>
@@ -175,14 +170,14 @@
     </div>
   </div>
 
-  <!-- Floating Cart Button -->
-  <button onclick="toggleCart()" class="fixed bottom-6 right-6 bg-gradient-to-r from-amber-600 to-orange-600 text-white p-5 rounded-full shadow-2xl hover:scale-110 transition z-30" aria-label="Open cart">
+  <!-- Floating Cart -->
+  <button id="fabOpenCartBtn" type="button" class="fixed bottom-6 right-6 bg-gradient-to-r from-amber-600 to-orange-600 text-white p-5 rounded-full shadow-2xl hover:scale-110 transition z-30" aria-label="Open cart">
     <span id="fabBasket" class="inline-block w-7 h-7"></span>
     <span id="cartBadgeFloating" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold"></span>
   </button>
 
   <script>
-    // ===== Utils: Bread-basket Icon (inline SVG) =====
+    /* ---------- ICON (Bread Basket) ---------- */
     const basketSVG = (size=24) => `
       <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path d="M3 10h18l-1.2 9a3 3 0 0 1-3 2.6H7.2A3 3 0 0 1 4.2 19L3 10Z" fill="#F59E0B"/>
@@ -190,137 +185,127 @@
         <path d="M7 14h10M6 17h12" stroke="#B45309" stroke-width="2" stroke-linecap="round"/>
         <path d="M9.5 6c.6-.9 1.8-1.5 2.5-1.5M7.5 8C8.3 6.9 9.2 6.4 10 6.1" stroke="#FDE68A" stroke-width="2" stroke-linecap="round"/>
       </svg>`;
+    const placeBaskets = () => [["headerBasket",24],["panelBasket",24],["fabBasket",28]].forEach(([id,size])=>{
+      const el = document.getElementById(id); if (el) el.innerHTML = basketSVG(size);
+    });
 
-    const placeBaskets = () => {
-      [["headerBasket",24],["panelBasket",24],["fabBasket",28]].forEach(([id,size]) => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = basketSVG(size);
-      });
-    };
-
-    // ===== MENU DATA =====
+    /* ---------- DATA ---------- */
     const menuCategories = [
       { name: 'Coffee', items: [
-          { id: 1, name: 'Espresso', price: 80, description: 'Classic Italian single shot' },
-          { id: 2, name: 'Cappuccino', price: 130, description: 'Espresso with steamed milk foam' },
-          { id: 3, name: 'Latte', price: 140, description: 'Smooth milk + espresso' },
-          { id: 4, name: 'Americano', price: 100, description: 'Espresso with hot water' },
-          { id: 5, name: 'Macchiato', price: 110, description: 'Espresso marked with foam' },
-        ]},
-      { name: 'Breads & Bakes', items: [
-          { id: 6, name: 'Garlic Bread', price: 110, description: 'Buttery & garlicky' },
-          { id: 7, name: 'Bruschetta', price: 120, description: 'Tomato & basil on toast' },
-          { id: 8, name: 'Croissant (Butter)', price: 90, description: 'Flaky, fresh-baked' },
-          { id: 9, name: 'Focaccia Slice', price: 130, description: 'Rosemary & olive oil' },
-        ]},
-      { name: 'Panini & Pizza', items: [
-          { id: 10, name: 'Veggie Panini', price: 150, description: 'Grilled veggies, pesto' },
-          { id: 11, name: 'Cheese Panini', price: 150, description: 'Melted cheese delight' },
-          { id: 12, name: 'Margherita Pizza (slice)', price: 160, description: 'Tomato, mozzarella, basil' },
-        ]},
-      { name: 'Desserts', items: [
-          { id: 13, name: 'Tiramisu (cup)', price: 180, description: 'Coffee-soaked, mascarpone' },
-          { id: 14, name: 'Panna Cotta', price: 160, description: 'Creamy Italian pudding' },
-          { id: 15, name: 'Gelato (scoop)', price: 100, description: 'Italian-style ice cream' },
-        ]},
-      { name: 'Drinks', items: [
-          { id: 16, name: 'Sparkling Water', price: 60, description: 'Chilled & refreshing' },
-          { id: 17, name: 'Iced Latte', price: 150, description: 'Cold, smooth espresso drink' },
-          { id: 18, name: 'Orange Soda', price: 90, description: 'Citrusy fizz' },
-        ]},
+        { id:1, name:'Espresso', price:80, description:'Classic Italian single shot' },
+        { id:2, name:'Cappuccino', price:130, description:'Espresso with steamed milk foam' },
+        { id:3, name:'Latte', price:140, description:'Smooth milk + espresso' },
+        { id:4, name:'Americano', price:100, description:'Espresso with hot water' },
+        { id:5, name:'Macchiato', price:110, description:'Espresso marked with foam' },
+      ]},
+      { name:'Breads & Bakes', items: [
+        { id:6, name:'Garlic Bread', price:110, description:'Buttery & garlicky' },
+        { id:7, name:'Bruschetta', price:120, description:'Tomato & basil on toast' },
+        { id:8, name:'Croissant (Butter)', price:90, description:'Flaky, fresh-baked' },
+        { id:9, name:'Focaccia Slice', price:130, description:'Rosemary & olive oil' },
+      ]},
+      { name:'Panini & Pizza', items: [
+        { id:10, name:'Veggie Panini', price:150, description:'Grilled veggies, pesto' },
+        { id:11, name:'Cheese Panini', price:150, description:'Melted cheese delight' },
+        { id:12, name:'Margherita Pizza (slice)', price:160, description:'Tomato, mozzarella, basil' },
+      ]},
+      { name:'Desserts', items: [
+        { id:13, name:'Tiramisu (cup)', price:180, description:'Coffee-soaked, mascarpone' },
+        { id:14, name:'Panna Cotta', price:160, description:'Creamy Italian pudding' },
+        { id:15, name:'Gelato (scoop)', price:100, description:'Italian-style ice cream' },
+      ]},
+      { name:'Drinks', items: [
+        { id:16, name:'Sparkling Water', price:60, description:'Chilled & refreshing' },
+        { id:17, name:'Iced Latte', price:150, description:'Cold, smooth espresso drink' },
+        { id:18, name:'Orange Soda', price:90, description:'Citrusy fizz' },
+      ]},
     ];
 
-    // ===== Shared storage & channel =====
-    const LS_KEY = 'cafe_orders';
-    const ch = 'BroadcastChannel' in window ? new BroadcastChannel('cafe_orders') : null;
+    /* ---------- SHARED STORAGE / CHANNEL ---------- */
+    const ORDERS_KEY = 'cafe_orders';
+    const CART_KEY   = 'cafe_cart';
+    const ch = ('BroadcastChannel' in window) ? new BroadcastChannel('cafe_orders') : null;
 
-    const loadOrders = () => JSON.parse(localStorage.getItem(LS_KEY) || '[]');
-    const saveOrders = (orders) => localStorage.setItem(LS_KEY, JSON.stringify(orders));
+    const loadOrders = () => JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+    const saveOrders = (orders) => localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+    const notifyStorage = (payload) => {
+      // Fire a separate key to trigger storage event on other tabs/pages
+      localStorage.setItem('cafe_orders__ping', JSON.stringify({ t: Date.now(), ...payload }));
+    };
 
-    // ===== State =====
-    let cart = JSON.parse(localStorage.getItem('cafe_cart') || '[]');
+    /* ---------- STATE ---------- */
+    let cart = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
     let activeCategory = 'All';
 
-    // ===== Render Category Tabs =====
-    function renderCategoryTabs() {
+    /* ---------- RENDER TABS ---------- */
+    function renderCategoryTabs(){
       const tabs = ['All', ...menuCategories.map(c => c.name)];
       const wrap = document.getElementById('categoryTabs');
       wrap.innerHTML = tabs.map(name => `
-        <button data-cat="${name}" class="px-4 py-2 rounded-full text-sm bg-white/90 text-amber-800 shadow hover:bg-white ${name===activeCategory ? 'ring-2 ring-amber-500 font-semibold' : ''}">${name}</button>
+        <button type="button" data-cat="${name}" class="px-4 py-2 rounded-full text-sm bg-white/90 text-amber-800 shadow hover:bg-white ${name===activeCategory ? 'ring-2 ring-amber-500 font-semibold' : ''}">${name}</button>
       `).join('');
       wrap.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => { activeCategory = btn.dataset.cat; renderMenu(); }));
     }
 
-    // ===== Render Menu =====
-    function renderMenu() {
+    /* ---------- RENDER MENU ---------- */
+    function renderMenu(){
       const container = document.getElementById('menuContainer');
       const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
-
       const cats = activeCategory === 'All' ? menuCategories : menuCategories.filter(c => c.name === activeCategory);
       const html = cats.map(category => {
         const items = category.items.filter(i => i.name.toLowerCase().includes(q) || i.description.toLowerCase().includes(q));
         if (!items.length) return '';
         return `
-        <section class="mb-8">
-          <div class="flex items-center gap-2 mb-2">
-            <h2 class="text-2xl font-bold text-amber-800">${category.name}</h2>
-            <span class="h-1 w-16 bg-amber-500 rounded"></span>
-          </div>
-          <div class="grid sm:grid-cols-2 gap-4">
-            ${items.map(item => `
-              <article class="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition">
-                <div class="flex justify-between items-start gap-3">
-                  <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-gray-800">${item.name}</h3>
-                    <p class="text-sm text-gray-600 mt-1">${item.description}</p>
-                    <p class="text-xl font-bold text-amber-600 mt-2">₹${item.price}</p>
+          <section class="mb-8">
+            <div class="flex items-center gap-2 mb-2">
+              <h2 class="text-2xl font-bold text-amber-800">${category.name}</h2>
+              <span class="h-1 w-16 bg-amber-500 rounded"></span>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+              ${items.map(item => `
+                <article class="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition">
+                  <div class="flex justify-between items-start gap-3">
+                    <div class="flex-1">
+                      <h3 class="text-lg font-semibold text-gray-800">${item.name}</h3>
+                      <p class="text-sm text-gray-600 mt-1">${item.description}</p>
+                      <p class="text-xl font-bold text-amber-600 mt-2">₹${item.price}</p>
+                    </div>
+                    <button type="button" class="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition flex items-center gap-2" onclick="addToCart(${item.id})">
+                      <i data-lucide="plus" class="w-4 h-4"></i>
+                      Add
+                    </button>
                   </div>
-                  <button onclick="addToCart(${item.id})" class="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition flex items-center gap-2">
-                    <i data-lucide="plus" class="w-4 h-4"></i><span class="sr-only">Plus</span>
-                    Add
-                  </button>
-                </div>
-              </article>
-            `).join('')}
-          </div>
-        </section>`;
+                </article>
+              `).join('')}
+            </div>
+          </section>`;
       }).join('');
-
       container.innerHTML = html || '<p class="text-center text-gray-500">No matching items.</p>';
       lucide.createIcons();
       placeBaskets();
     }
 
-    // ===== Cart Helpers =====
-    function persistCart(){ localStorage.setItem('cafe_cart', JSON.stringify(cart)); }
-
-    function addToCart(itemId) {
-      const item = menuCategories.flatMap(c => c.items).find(i => i.id === itemId);
+    /* ---------- CART HELPERS ---------- */
+    function persistCart(){ localStorage.setItem(CART_KEY, JSON.stringify(cart)); }
+    function addToCart(itemId){
+      const item = menuCategories.flatMap(c=>c.items).find(i=>i.id===itemId);
       if (!item) return;
-      const existing = cart.find(i => i.id === itemId);
-      if (existing) { existing.quantity += 1; }
-      else { cart.push({ ...item, quantity: 1 }); }
+      const ex = cart.find(i=>i.id===itemId);
+      if (ex) ex.quantity += 1; else cart.push({...item, quantity:1});
       updateCartUI();
     }
-
-    function updateQuantity(itemId, change) {
-      const idx = cart.findIndex(i => i.id === itemId);
-      if (idx === -1) return;
-      cart[idx].quantity += change;
-      if (cart[idx].quantity <= 0) cart.splice(idx, 1);
+    function updateQuantity(itemId, delta){
+      const i = cart.findIndex(i=>i.id===itemId);
+      if (i===-1) return;
+      cart[i].quantity += delta;
+      if (cart[i].quantity<=0) cart.splice(i,1);
       updateCartUI();
     }
-
-    function removeFromCart(itemId) {
-      cart = cart.filter(i => i.id !== itemId);
-      updateCartUI();
-    }
-
+    function removeFromCart(itemId){ cart = cart.filter(i=>i.id!==itemId); updateCartUI(); }
     function clearCart(){ cart = []; updateCartUI(); }
+    function getSubtotal(){ return cart.reduce((s,i)=>s+i.price*i.quantity,0); }
 
-    function getSubtotal() { return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0); }
-
-    function updateCartUI() {
+    function updateCartUI(){
       const cartItems = document.getElementById('cartItems');
       const subtotalAmount = document.getElementById('subtotalAmount');
       const svcAmount = document.getElementById('svcAmount');
@@ -334,19 +319,18 @@
       const payCounterBtn = document.getElementById('payCounterBtn');
       const clearCartBtn = document.getElementById('clearCartBtn');
 
-      const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+      const totalItems = cart.reduce((s,i)=>s+i.quantity,0);
 
-      if (totalItems > 0) {
-        cartBadge.classList.remove('hidden');
-        cartBadge.textContent = totalItems;
-        cartBadgeFloating.classList.remove('hidden');
-        cartBadgeFloating.textContent = totalItems;
+      // badges
+      if (totalItems>0){
+        cartBadge.classList.remove('hidden'); cartBadge.textContent = totalItems;
+        cartBadgeFloating.classList.remove('hidden'); cartBadgeFloating.textContent = totalItems;
       } else {
         cartBadge.classList.add('hidden');
         cartBadgeFloating.classList.add('hidden');
       }
 
-      if (cart.length === 0) {
+      if (cart.length===0){
         cartItems.innerHTML = '<p class="text-gray-500 text-center py-8">Your cart is empty</p>';
         cartTotal.classList.add('hidden');
         customerForm.classList.add('hidden');
@@ -354,29 +338,29 @@
         payCounterBtn.classList.add('hidden');
         clearCartBtn.classList.add('hidden');
       } else {
-        cartItems.innerHTML = cart.map(item => `
+        cartItems.innerHTML = cart.map(item=>`
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex justify-between items-start mb-2">
               <h3 class="font-semibold text-gray-800">${item.name}</h3>
-              <button onclick="removeFromCart(${item.id})" class="text-red-500 hover:text-red-700" title="Remove item">
+              <button type="button" onclick="removeFromCart(${item.id})" class="text-red-500 hover:text-red-700" title="Remove item">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
               </button>
             </div>
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-3 bg-white rounded-lg p-1">
-                <button onclick="updateQuantity(${item.id}, -1)" class="text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded font-bold" title="Decrease">&minus;</button>
+                <button type="button" onclick="updateQuantity(${item.id},-1)" class="text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded font-bold" title="Decrease">&minus;</button>
                 <span class="font-semibold w-8 text-center">${item.quantity}</span>
-                <button onclick="updateQuantity(${item.id}, 1)" class="text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded font-bold" title="Increase">+</button>
+                <button type="button" onclick="updateQuantity(${item.id},1)" class="text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded font-bold" title="Increase">+</button>
               </div>
-              <span class="font-bold text-amber-600">₹${item.price * item.quantity}</span>
+              <span class="font-bold text-amber-600">₹${item.price*item.quantity}</span>
             </div>
           </div>
         `).join('');
 
         const subtotal = getSubtotal();
-        const svc = Math.round(subtotal * 0.05);
-        const tax = Math.round((subtotal + svc) * 0.05);
-        const total = subtotal + svc + tax;
+        const svc = Math.round(subtotal*0.05);
+        const tax = Math.round((subtotal+svc)*0.05);
+        const total = subtotal+svc+tax;
         subtotalAmount.textContent = subtotal;
         svcAmount.textContent = svc;
         taxAmount.textContent = tax;
@@ -390,15 +374,15 @@
 
         lucide.createIcons();
       }
-
       persistCart();
       placeBaskets();
     }
 
-    function toggleCart() { document.getElementById('cartOverlay').classList.toggle('hidden'); }
-    function closeCart() { document.getElementById('cartOverlay').classList.add('hidden'); }
+    /* ---------- MODALS & BUTTONS ---------- */
+    function toggleCart(){ document.getElementById('cartOverlay').classList.toggle('hidden'); }
+    function openCart(){ document.getElementById('cartOverlay').classList.remove('hidden'); }
+    function closeCart(){ document.getElementById('cartOverlay').classList.add('hidden'); }
 
-    // Wi-Fi modal helpers
     function openWifiModal(){
       const img = document.getElementById('wifiImg');
       if (img && WIFI_QR_URL) img.src = WIFI_QR_URL;
@@ -407,20 +391,19 @@
     }
     function closeWifiModal(){ document.getElementById('wifiModal').classList.add('hidden'); }
 
-    // ===== Order creation & publishing to Admin =====
-    function createOrder(paymentMethod) {
-      const name = document.getElementById('customerName').value.trim();
+    /* ---------- ORDER CREATION ---------- */
+    function createOrder(paymentMethod){
+      const name  = document.getElementById('customerName').value.trim();
       const table = document.getElementById('tableNumber').value.trim();
       const notes = document.getElementById('orderNotes').value.trim();
-
-      if (!name || !table) { alert('Please enter your name and table number (or Takeaway).'); return null; }
+      if (!name || !table){ alert('Please enter your name and table number (or Takeaway).'); return null; }
 
       const subtotal = getSubtotal();
-      const svc = Math.round(subtotal * 0.05);
-      const tax = Math.round((subtotal + svc) * 0.05);
-      const total = subtotal + svc + tax;
+      const svc = Math.round(subtotal*0.05);
+      const tax = Math.round((subtotal+svc)*0.05);
+      const total = subtotal+svc+tax;
 
-      const order = {
+      return {
         id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
         customerName: name,
         tableNumber: table,
@@ -428,50 +411,34 @@
         items: cart,
         totals: { subtotal, svc, tax, total },
         timestamp: new Date().toISOString(),
-        status: 'new', // new -> paid -> completed/canceled
-        payment: {
-          method: paymentMethod, // 'counter' or 'online'
-          status: 'pending'      // pending -> paid
-        }
+        status: 'new',
+        payment: { method: paymentMethod, status:'pending' }
       };
-      return order;
     }
 
-    function submitOrder(order) {
-      // Persist
+    function submitOrder(order){
       const orders = loadOrders();
       orders.unshift(order);
       saveOrders(orders);
 
-      // Notify admin page (same origin)
-      if (ch) ch.postMessage({ type: 'new-order', order });
+      // live notify (multi-tab)
+      if (ch) ch.postMessage({ type:'new-order', order });
+      notifyStorage({ type:'new-order' });
 
-      // Reset UI
+      // success + reset
       document.getElementById('successModal').classList.remove('hidden');
-      setTimeout(() => {
+      setTimeout(()=>{
         cart = [];
-        document.getElementById('customerName').value = '';
-        document.getElementById('tableNumber').value = '';
-        document.getElementById('orderNotes').value = '';
+        document.getElementById('customerName').value='';
+        document.getElementById('tableNumber').value='';
+        document.getElementById('orderNotes').value='';
         updateCartUI();
         closeCart();
         document.getElementById('successModal').classList.add('hidden');
-      }, 1500);
+      }, 1200);
     }
 
-    // Buttons
-    document.addEventListener('click', (e) => {
-      if (e.target && e.target.id === 'paymentBtn') {
-        const o = createOrder('online');
-        if (o) submitOrder(o);
-      }
-      if (e.target && e.target.id === 'payCounterBtn') {
-        const o = createOrder('counter');
-        if (o) submitOrder(o);
-      }
-    });
-
-    // ===== Initialize =====
+    /* ---------- INIT ---------- */
     function initBranding(){
       const logo = document.getElementById('logoImg');
       const hero = document.getElementById('heroLogo');
@@ -488,19 +455,45 @@
       if (fav) fav.href = FAVICON_URL || "favicon.png";
     }
 
-    document.getElementById('searchInput')?.addEventListener('input', () => renderMenu());
-    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeWifiModal(); });
+    /* Bind SAFE, direct listeners (fixes your button click issue) */
     document.addEventListener('DOMContentLoaded', () => {
+      // Branding, icons, UI
+      initBranding();
+      renderCategoryTabs();
+      renderMenu();
+      updateCartUI();
+      lucide.createIcons();
       placeBaskets();
-      document.getElementById('wifiChip')?.addEventListener('click', openWifiModal);
-    });
 
-    initBranding();
-    renderCategoryTabs();
-    renderMenu();
-    updateCartUI();
-    lucide.createIcons();
-    placeBaskets();
+      // Search
+      const si = document.getElementById('searchInput');
+      if (si) si.addEventListener('input', renderMenu);
+
+      // Open/close cart
+      document.getElementById('openCartBtn')?.addEventListener('click', openCart);
+      document.getElementById('fabOpenCartBtn')?.addEventListener('click', openCart);
+      document.getElementById('closeCartBtn')?.addEventListener('click', closeCart);
+
+      // Wi-Fi modal
+      document.getElementById('wifiChip')?.addEventListener('click', openWifiModal);
+      document.getElementById('closeWifiBtn')?.addEventListener('click', closeWifiModal);
+      document.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ closeWifiModal(); closeCart(); } });
+
+      // Payments
+      document.getElementById('paymentBtn')?.addEventListener('click', () => {
+        const o = createOrder('online'); if (o) submitOrder(o);
+      });
+      document.getElementById('payCounterBtn')?.addEventListener('click', () => {
+        const o = createOrder('counter'); if (o) submitOrder(o);
+      });
+
+      // Ensure overlay click closes
+      document.getElementById('cartOverlay')?.addEventListener('click', (e) => {
+        if (e.target.id === 'cartOverlay') closeCart();
+      });
+      // Clear cart
+      document.getElementById('clearCartBtn')?.addEventListener('click', clearCart);
+    });
   </script>
 </body>
 </html>
