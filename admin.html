@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>The Daily Grind & Dough Co. — Admin Orders</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
+  </style>
+
+  <!-- Match front-end branding -->
+  <script>
+    const RAW_LOGO   = "https://github.com/vsaipavan6/cafe/blob/main/logo.png";
+    const toRaw = (url) => {
+      try {
+        if (!url) return "";
+        if (/raw\.githubusercontent\.com|^\.?\/|^https?:\/\/[^/]+\.github\.io/.test(url)) return url;
+        if (/https?:\/\/github\.com\/.+\/blob\//.test(url)) {
+          return url.replace("https://github.com/", "https://raw.githubusercontent.com/").replace("/blob/", "/");
+        }
+        return url;
+      } catch { return url; }
+    };
+    const LOGO_URL = toRaw(RAW_LOGO) || "logo.png";
+    const FAVICON_URL = LOGO_URL;
+  </script>
+  <link id="dynamic-favicon" rel="icon" type="image/png" href=""/>
+</head>
+<body class="bg-gradient-to-br from-amber-50 to-orange-50 min-h-screen">
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-amber-700 to-orange-600 text-white p-4 sm:p-6 shadow-lg sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto flex justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <img id="logoImg" src="" alt="Cafe Logo" class="w-12 h-12 rounded-full ring-2 ring-white/80 shadow-md object-cover"/>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold leading-tight">Admin — Orders Board</h1>
+          <p class="text-xs sm:text-sm text-amber-100">Auto-refresh every 5 minutes • Live updates enabled</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-xs sm:text-sm">Last refresh: <span id="lastRefresh" class="font-semibold">—</span></div>
+        <div class="text-xs sm:text-sm">Next refresh in: <span id="refreshIn" class="font-semibold">—</span></div>
+      </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto mt-4 overflow-x-auto">
+      <div id="statusTabs" class="flex gap-2"></div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-6xl mx-auto p-4 sm:p-6">
+    <div id="ordersContainer" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+    <div id="emptyState" class="hidden text-center text-gray-500 py-20">
+      <p>No orders yet.</p>
+    </div>
+  </main>
+
+  <script>
+    // ===== Constants & Storage =====
+    const LS_KEY = 'cafe_orders';
+    const ch = 'BroadcastChannel' in window ? new BroadcastChannel('cafe_orders') : null;
+
+    const loadOrders = () => JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+    const saveOrders = (orders) => localStorage.setItem(LS_KEY, JSON.stringify(orders));
+
+    // ===== Branding =====
+    function initBranding(){
+      const logo = document.getElementById('logoImg');
+      const fav  = document.getElementById('dynamic-favicon');
+      if (logo) { logo.src = LOGO_URL; logo.onerror = () => { logo.src = "logo.png"; }; }
+      if (fav) fav.href = FAVICON_URL || "favicon.png";
+    }
+
+    // ===== Basket Icon (for consistency if needed later) =====
+    const basketSVG = (size=20) => `
+      <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M3 10h18l-1.2 9a3 3 0 0 1-3 2.6H7.2A3 3 0 0 1 4.2 19L3 10Z" fill="#F59E0B"/>
+        <path d="M6 10c0-3 2.7-6 6-6s6 3 6 6" stroke="#92400E" stroke-width="2" stroke-linecap="round"/>
+        <path d="M7 14h10M6 17h12" stroke="#B45309" stroke-width="2" stroke-linecap="round"/>
+        <path d="M9.5 6c.6-.9 1.8-1.5 2.5-1.5M7.5 8C8.3 6.9 9.2 6.4 10 6.1" stroke="#FDE68A" stroke-width="2" stroke-linecap="round"/>
+      </svg>`;
+
+    // ===== Filters =====
+    const FILTERS = ['All','New','Pending Payment','Paid','Completed'];
+
+    let activeFilter = 'All';
+    function renderStatusTabs(){
+      const wrap = document.getElementById('statusTabs');
+      wrap.innerHTML = FILTERS.map(f => `
+        <button data-filter="${f}" class="px-4 py-2 rounded-full text-sm bg-white/90 text-amber-800 shadow hover:bg-white ${f===activeFilter ? 'ring-2 ring-amber-500 font-semibold' : ''}">${f}</button>
+      `).join('');
+      wrap.querySelectorAll('button').forEach(btn => btn.addEventListener('click', ()=>{
+        activeFilter = btn.dataset.filter;
+        renderOrders();
+      }));
+    }
+
+    // ===== Render Orders =====
+    function orderMatchesFilter(o){
+      if (activeFilter==='All') return true;
+      if (activeFilter==='New') return o.status === 'new';
+      if (activeFilter==='Pending Payment') return o.payment?.status === 'pending';
+      if (activeFilter==='Paid') return o.payment?.status === 'paid';
+      if (activeFilter==='Completed') return o.status === 'completed';
+      return true;
+    }
+
+    function renderOrders(){
+      const orders = loadOrders();
+      const list = orders.filter(orderMatchesFilter);
+
+      const grid = document.getElementById('ordersContainer');
+      const empty = document.getElementById('emptyState');
+
+      if (!list.length){
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      grid.innerHTML = list.map(o => {
+        const itemsHtml = o.items.map(it => `
+          <div class="flex justify-between text-sm">
+            <span>${it.name} × ${it.quantity}</span>
+            <span>₹${it.price * it.quantity}</span>
+          </div>
+        `).join('');
+
+        const payBadge = o.payment?.status === 'paid'
+          ? `<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">Paid (${o.payment.method})</span>`
+          : `<span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">Pending (${o.payment.method})</span>`;
+
+        const statusBadge = o.status === 'completed'
+          ? `<span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">Completed</span>`
+          : o.status === 'new'
+            ? `<span class="px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-700">New</span>`
+            : `<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">${o.status}</span>`;
+
+        return `
+        <article class="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition">
+          <div class="flex items-center justify-between mb-2">
+            <div class="font-bold text-gray-800">#${o.id.slice(-6).toUpperCase()}</div>
+            <div class="flex items-center gap-2">${payBadge} ${statusBadge}</div>
+          </div>
+          <div class="text-sm text-gray-600 mb-1"><b>${o.customerName}</b> • Table: <b>${o.tableNumber}</b></div>
+          ${o.notes ? `<div class="text-xs text-gray-500 mb-2">Note: ${o.notes}</div>` : ``}
+
+          <div class="border rounded-lg p-3 mb-3 bg-gray-50">
+            ${itemsHtml}
+            <div class="border-t mt-2 pt-2 text-sm">
+              <div class="flex justify-between"><span>Subtotal</span><span>₹${o.totals.subtotal}</span></div>
+              <div class="flex justify-between text-gray-600 text-xs"><span>Service (5%)</span><span>₹${o.totals.svc}</span></div>
+              <div class="flex justify-between text-gray-600 text-xs"><span>Tax (5%)</span><span>₹${o.totals.tax}</span></div>
+              <div class="flex justify-between font-semibold mt-1"><span>Total</span><span class="text-amber-700">₹${o.totals.total}</span></div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onclick="markPaid('${o.id}','cash')">Mark Paid (Cash)</button>
+            <button class="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" onclick="markPaid('${o.id}','online')">Mark Paid (Online)</button>
+            <button class="px-3 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700" onclick="markCompleted('${o.id}')">Mark Completed</button>
+            <button class="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700" onclick="cancelOrder('${o.id}')">Cancel</button>
+          </div>
+
+          <div class="mt-3 text-[11px] text-gray-500">Placed: ${new Date(o.timestamp).toLocaleString()}</div>
+        </article>`;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // ===== Actions =====
+    function mutateOrders(mutator){
+      const orders = loadOrders();
+      mutator(orders);
+      saveOrders(orders);
+      renderOrders();
+    }
+
+    function broadcast(type, payload){
+      if (ch) ch.postMessage({ type, ...payload });
+    }
+
+    window.markPaid = (id, method) => {
+      mutateOrders(orders => {
+        const o = orders.find(x => x.id === id);
+        if (!o) return;
+        o.payment.status = 'paid';
+        o.payment.method = method;
+      });
+      broadcast('order-updated', { id });
+    };
+
+    window.markCompleted = (id) => {
+      mutateOrders(orders => {
+        const o = orders.find(x => x.id === id);
+        if (!o) return;
+        o.status = 'completed';
+      });
+      broadcast('order-updated', { id });
+    };
+
+    window.cancelOrder = (id) => {
+      mutateOrders(orders => {
+        const idx = orders.findIndex(x => x.id === id);
+        if (idx !== -1) orders.splice(idx, 1);
+      });
+      broadcast('order-canceled', { id });
+    };
+
+    // ===== Auto Refresh (every 5 minutes) =====
+    const REFRESH_MS = 5 * 60 * 1000;
+    let nextRefreshAt = Date.now() + REFRESH_MS;
+    function scheduleRefresh(){
+      nextRefreshAt = Date.now() + REFRESH_MS;
+      updateRefreshUI();
+      setTimeout(()=>{
+        renderOrders();
+        document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+        scheduleRefresh();
+      }, REFRESH_MS);
+    }
+    function updateRefreshUI(){
+      const el = document.getElementById('refreshIn');
+      function tick(){
+        const ms = Math.max(0, nextRefreshAt - Date.now());
+        const s = Math.ceil(ms/1000);
+        el.textContent = s + 's';
+        requestAnimationFrame(tick);
+      }
+      tick();
+    }
+
+    // ===== Real-time channel =====
+    if (ch){
+      ch.onmessage = (ev) => {
+        const { type, order, id } = ev.data || {};
+        if (type === 'new-order' && order){
+          // If already present, ignore; else add to top
+          const orders = loadOrders();
+          if (!orders.find(o => o.id === order.id)){
+            orders.unshift(order);
+            saveOrders(orders);
+          }
+          renderOrders();
+        }
+        if (type === 'order-updated' || type === 'order-canceled'){
+          renderOrders();
+        }
+      };
+    }
+
+    // ===== Init =====
+    initBranding();
+    renderStatusTabs();
+    renderOrders();
+    document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+    scheduleRefresh();
+  </script>
+</body>
+</html>
