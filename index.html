@@ -35,14 +35,9 @@
     const WIFI_QR_URL = toRaw(RAW_WIFIQR) || "wifi.jpg";
 
     /* ---------------------------- Supabase settings ---------------------------- */
-    // Using the project URL & anon key you provided
     const SUPABASE_URL  = "https://ihanajfastlgsqrrbmef.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloYW5hamZhc3RsZ3NxcnJibWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5OTg5MDMsImV4cCI6MjA3NzU3NDkwM30.FKcKzjeVf7bO6zDwPjRG70cLI0ca7C9PFhzjwOQUs0A";
-
-    let sb; // client created after supabase script loads
-    document.addEventListener('DOMContentLoaded', () => {
-      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    });
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   </script>
 
   <link id="dynamic-favicon" rel="icon" type="image/png" href="" />
@@ -461,32 +456,30 @@
 
     /* ------------------------ Submit -> Supabase insert ---------------------- */
     async function submitOrder(order, isCounter = false) {
+      // 1) DB write
+      const { error } = await sb
+        .from('orders')
+        .insert({ id: order.id, payload: order, status: order.status });
+
+      if (error) {
+        console.error('[Cafe] Supabase insert failed:', error);
+        alert('Failed to place order. Please try again.');
+        return;
+      }
+
+      // 2) Post-insert UI (sandboxed: no customer alert on UI hiccups)
       try {
-        if (!sb) { alert("Order service not ready. Please try again."); return; }
-
-        // Write to Supabase (orders table)
-        const { error } = await sb
-          .from('orders')
-          .insert({ id: order.id, payload: order, status: order.status });
-
-        if (error) {
-          console.error('[Cafe] Supabase insert failed:', error);
-          alert('Failed to place order. Please try again.');
-          return;
-        }
-
-        // Show success modal
         document.getElementById('modalOrderId').textContent = '#' + order.id.slice(-8);
-        document.getElementById('modalTable').textContent = order.tableNumber;
-        document.getElementById('modalTotal').textContent = '₹' + order.totals.total;
+        document.getElementById('modalTable').textContent   = order.tableNumber;
+        document.getElementById('modalTotal').textContent   = '₹' + order.totals.total;
         document.getElementById('successModal').classList.remove('hidden');
         lucide.createIcons();
 
         // Reset cart and form
         cart = [];
         document.getElementById('customerName').value = '';
-        document.getElementById('tableNumber').value = '';
-        document.getElementById('orderNotes').value = '';
+        document.getElementById('tableNumber').value  = '';
+        document.getElementById('orderNotes').value   = '';
         updateCartUI();
         closeCart();
 
@@ -496,9 +489,8 @@
             window.location.href = 'admin.html';
           }, 1800);
         }
-      } catch (e) {
-        console.error('[Cafe] submitOrder error:', e);
-        alert('Something went wrong. Please try again.');
+      } catch (uiErr) {
+        console.warn('[Cafe] Order placed, UI update issue:', uiErr);
       }
     }
 
@@ -537,6 +529,10 @@
     /* ----------------------------- Misc handlers ---------------------------- */
     window.addEventListener('error', (e) => {
       console.error('[Cafe] Uncaught error:', e.error || e.message);
+    });
+    // Keep background promise errors from scaring users
+    window.addEventListener('unhandledrejection', (e)=> {
+      console.warn('[Cafe] Unhandled promise rejection:', e.reason);
     });
 
     document.getElementById('searchInput')?.addEventListener('input', () => renderMenu());
