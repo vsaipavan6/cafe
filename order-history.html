@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cafe Admin — Order History</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
+  </style>
+
+  <script>
+    const RAW_LOGO = "https://raw.githubusercontent.com/vsaipavan6/cafe/main/logo.png";
+    const toRaw = (url) => {
+      try{
+        if(!url) return "";
+        if(/raw\.githubusercontent\.com|^\.?\/|^https?:\/\/[^/]+\.github\.io/.test(url)) return url;
+        if(/https?:\/\/github\.com\/.+\/blob\//.test(url)){
+          return url.replace("https://github.com/","https://raw.githubusercontent.com/").replace("/blob/","/");
+        }
+        return url;
+      }catch{ return url; }
+    };
+    const LOGO_URL = toRaw(RAW_LOGO) || "logo.png";
+    const FAVICON_URL = LOGO_URL;
+  </script>
+  <link id="dynamic-favicon" rel="icon" type="image/png" href="" />
+  <link rel="icon" href="favicon.png" type="image/png" />
+</head>
+<body class="bg-gradient-to-br from-amber-50 to-orange-50 min-h-screen">
+  <header class="bg-gradient-to-r from-amber-700 to-orange-600 text-white p-4 sm:p-6 shadow sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img id="logoImg" src="" alt="Logo" class="w-10 h-10 rounded-full ring-2 ring-white/80 object-cover"/>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold leading-tight">Cafe Admin — Order History</h1>
+          <p class="text-xs sm:text-sm text-amber-100">Completed orders • Retained for 1 year</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="admin.html" class="text-white bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-sm transition">← Admin</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-4 sm:p-6">
+    <div class="bg-white rounded-xl shadow p-4 sm:p-5 mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="text-sm text-gray-700">
+          <span class="font-semibold" id="historyCount">0</span> completed orders (last 365 days)
+        </div>
+        <input type="text" id="searchInput" placeholder="Search by name, table, order ID..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent w-64"/>
+      </div>
+      <div class="flex gap-2">
+        <button id="exportBtn" class="bg-amber-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-amber-700 transition shadow flex items-center gap-2" type="button">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          Export CSV
+        </button>
+        <button id="purgeBtn" class="bg-white text-red-600 border border-red-600 px-3 py-2 rounded-lg text-sm hover:bg-red-50 transition" type="button">
+          <i data-lucide="trash-2" class="w-4 h-4 inline"></i>
+          Purge >1yr
+        </button>
+      </div>
+    </div>
+
+    <section id="historyWrap" class="space-y-3"></section>
+    <p id="emptyState" class="hidden text-center text-gray-500 mt-6 py-8">
+      <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 text-gray-400"></i>
+      <br>No completed orders yet.
+    </p>
+  </main>
+
+  <script>
+    (function(){
+      const img = document.getElementById('logoImg');
+      if(img){ img.src = LOGO_URL; img.onerror = ()=>img.src="logo.png"; }
+      const fav = document.getElementById('dynamic-favicon');
+      if (fav) fav.href = FAVICON_URL || "favicon.png";
+    })();
+
+    const HISTORY_KEY = 'cafe_history';
+    const loadHistory = ()=>JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+    const saveHistory = (h)=>{
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+      window.dispatchEvent(new StorageEvent('storage', { key: HISTORY_KEY }));
+    };
+
+    let searchQuery = '';
+
+    function enforceHistoryRetention(){
+      const yearAgo = Date.now() - 365*24*60*60*1000;
+      const kept = loadHistory().filter(x=>new Date(x.timestamp).getTime()>=yearAgo);
+      saveHistory(kept);
+      return kept;
+    }
+
+    function rupee(n){ return `₹${n.toLocaleString()}`; }
+
+    function formatDate(iso){
+      const d = new Date(iso);
+      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+
+    function row(h){
+      const items = h.items.map(i=>`${i.name} × ${i.quantity}`).join(', ');
+      const paymentIcon = h.payment?.status==='paid' 
+        ? '<i data-lucide="check-circle" class="w-4 h-4 text-green-600 inline"></i>' 
+        : '<i data-lucide="alert-circle" class="w-4 h-4 text-yellow-600 inline"></i>';
+      
+      return `
+        <article class="bg-white rounded-xl shadow hover:shadow-md transition p-4">
+          <div class="grid md:grid-cols-12 gap-3 items-start">
+            <div class="md:col-span-2">
+              <div class="font-bold text-gray-800 text-sm">#${h.id.slice(-8)}</div>
+              <div class="text-xs text-gray-500 mt-1">
+                <i data-lucide="user" class="w-3 h-3 inline"></i>
+                ${h.customerName}
+              </div>
+              <div class="text-xs text-gray-500">
+                <i data-lucide="table" class="w-3 h-3 inline"></i>
+                Table ${h.tableNumber}
+              </div>
+            </div>
+            
+            <div class="md:col-span-4 text-sm text-gray-700">
+              <div class="font-medium mb-1">Items:</div>
+              <div class="text-xs">${items}</div>
+            </div>
+            
+            <div class="md:col-span-2 text-center">
+              <div class="text-xs text-gray-500 mb-1">Total</div>
+              <div class="text-lg font-bold text-amber-700">${rupee(h.totals.total)}</div>
+              <div class="text-xs text-gray-500 mt-1">
+                ${paymentIcon}
+                ${h.payment?.method || 'N/A'}
+              </div>
+            </div>
+            
+            <div class="md:col-span-4 text-xs text-gray-600 space-y-1">
+              <div>
+                <i data-lucide="calendar" class="w-3 h-3 inline"></i>
+                Placed: ${formatDate(h.timestamp)}
+              </div>
+              ${h.completedAt ? `
+                <div>
+                  <i data-lucide="check" class="w-3 h-3 inline"></i>
+                  Completed: ${formatDate(h.completedAt)}
+                </div>
+              ` : ''}
+              ${h.notes ? `
+                <div class="italic text-gray-500">
+                  <i data-lucide="message-circle" class="w-3 h-3 inline"></i>
+                  ${h.notes}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </article>`;
+    }
+
+    function filterHistory(list){
+      if(!searchQuery) return list;
+      const q = searchQuery.toLowerCase();
+      return list.filter(h => 
+        h.customerName.toLowerCase().includes(q) ||
+        h.tableNumber.toLowerCase().includes(q) ||
+        h.id.toLowerCase().includes(q) ||
+        h.items.some(i => i.name.toLowerCase().includes(q))
+      );
+    }
+
+    function render(){
+      const kept = enforceHistoryRetention();
+      const list = filterHistory(kept);
+      const wrap = document.getElementById('historyWrap');
+      const empty = document.getElementById('emptyState');
+      const countEl = document.getElementById('historyCount');
+      
+      countEl.textContent = kept.length;
+      wrap.innerHTML = list.map(row).join('');
+      
+      if(list.length===0) {
+        empty.classList.remove('hidden');
+        wrap.classList.add('hidden');
+      } else {
+        empty.classList.add('hidden');
+        wrap.classList.remove('hidden');
+      }
+      
+      lucide.createIcons();
+    }
+
+    function exportCSV(){
+      const data = loadHistory();
+      if(data.length === 0){
+        alert('No data to export');
+        return;
+      }
+      
+      const headers = ['Order ID', 'Customer', 'Table', 'Items', 'Subtotal', 'Service', 'Tax', 'Total', 'Payment Method', 'Payment Status', 'Placed At', 'Completed At', 'Notes'];
+      const rows = data.map(h => [
+        h.id,
+        h.customerName,
+        h.tableNumber,
+        h.items.map(i => `${i.name} x${i.quantity}`).join('; '),
+        h.totals.subtotal,
+        h.totals.svc,
+        h.totals.tax,
+        h.totals.total,
+        h.payment?.method || '',
+        h.payment?.status || '',
+        h.timestamp,
+        h.completedAt || '',
+        h.notes || ''
+      ]);
+      
+      const csv = [headers, ...rows].map(row => 
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+      ).join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cafe-order-history-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('purgeBtn').addEventListener('click', ()=>{
+      if(confirm('This will permanently delete all orders older than 1 year. Continue?')){
+        const kept = enforceHistoryRetention();
+        render();
+        alert(`History purged. ${kept.length} orders retained.`);
+      }
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', exportCSV);
+
+    document.getElementById('searchInput').addEventListener('input', (e)=>{
+      searchQuery = e.target.value;
+      render();
+    });
+
+    window.addEventListener('storage', (e)=>{
+      if(e.key===HISTORY_KEY) render();
+    });
+
+    render();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
