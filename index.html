@@ -12,6 +12,7 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
+    .btn-disabled { opacity: .6; pointer-events: none; }
   </style>
 
   <script>
@@ -128,12 +129,40 @@
           </div>
         </div>
 
-        <div id="customerForm" class="hidden space-y-3 mb-6">
+        <!-- Autofill-resistant customer form -->
+        <div id="customerForm" class="hidden space-y-3 mb-6" autocomplete="off">
           <div class="grid grid-cols-2 gap-3">
-            <input type="text" id="customerName" placeholder="Your Name" class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
-            <input type="text" id="tableNumber" placeholder="Table Number (or Takeaway)" class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            <input
+              type="text"
+              id="customerName"
+              placeholder="Your Name"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="none"
+              spellcheck="false"
+              class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            >
+            <input
+              type="text"
+              id="tableNumber"
+              placeholder="Table Number (or Takeaway)"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="none"
+              spellcheck="false"
+              class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            >
           </div>
-          <textarea id="orderNotes" rows="2" placeholder="Add a note (no onions, extra hot, etc.)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"></textarea>
+          <textarea
+            id="orderNotes"
+            rows="2"
+            placeholder="Add a note (no onions, extra hot, etc.)"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="none"
+            spellcheck="false"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+          ></textarea>
         </div>
 
         <div class="flex items-center justify-between mb-4">
@@ -252,10 +281,41 @@
         ]},
     ];
 
-    /* ------------------------ Local cart (kept as-is) ----------------------- */
+    /* ------------------------ Local cart (and helpers) ---------------------- */
     const CART_KEY = 'cafe_cart';
     let cart = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
     function persistCart(){ localStorage.setItem(CART_KEY, JSON.stringify(cart)); }
+
+    // Force-clear customer fields + defeat autofill
+    function clearCustomerFields() {
+      ['customerName','tableNumber','orderNotes'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = '';
+        el.removeAttribute('value');
+      });
+    }
+    function randomizeFieldNames() {
+      const stamp = Date.now().toString(36);
+      const map = {
+        customerName: `customerName-${stamp}`,
+        tableNumber:  `tableNumber-${stamp}`,
+        orderNotes:   `orderNotes-${stamp}`
+      };
+      Object.entries(map).forEach(([id, newName]) => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('name', newName);
+      });
+    }
+
+    // Strong clear: memory + storage + input fields
+    function clearCartHard() {
+      cart = [];
+      localStorage.removeItem(CART_KEY);
+      clearCustomerFields();
+      randomizeFieldNames();
+      updateCartUI();
+    }
 
     /* -------------------------- Category & rendering ------------------------ */
     let activeCategory = 'All';
@@ -455,8 +515,22 @@
     }
 
     /* ------------------------ Submit -> Supabase insert ---------------------- */
+    let isSubmitting = false;
+
+    function setPayButtonsDisabled(disabled) {
+      const btns = [document.getElementById('payCounterBtn'), document.getElementById('paymentBtn')];
+      btns.forEach(b => {
+        if (!b) return;
+        if (disabled) { b.classList.add('btn-disabled'); b.setAttribute('aria-disabled','true'); }
+        else { b.classList.remove('btn-disabled'); b.removeAttribute('aria-disabled'); }
+      });
+    }
+
     async function submitOrder(order, isCounter = false) {
-      // 1) DB write
+      if (isSubmitting) return;
+      isSubmitting = true;
+      setPayButtonsDisabled(true);
+
       const { error } = await sb
         .from('orders')
         .insert({ id: order.id, payload: order, status: order.status });
@@ -464,33 +538,34 @@
       if (error) {
         console.error('[Cafe] Supabase insert failed:', error);
         alert('Failed to place order. Please try again.');
+        isSubmitting = false;
+        setPayButtonsDisabled(false);
         return;
       }
 
-      // 2) Post-insert UI (sandboxed: no customer alert on UI hiccups)
+      // Clear cart + inputs to prevent duplicates and autofill ghosts
+      clearCartHard();
+
+      // Post-insert UI
       try {
         document.getElementById('modalOrderId').textContent = '#' + order.id.slice(-8);
         document.getElementById('modalTable').textContent   = order.tableNumber;
         document.getElementById('modalTotal').textContent   = '₹' + order.totals.total;
         document.getElementById('successModal').classList.remove('hidden');
         lucide.createIcons();
-
-        // Reset cart and form
-        cart = [];
-        document.getElementById('customerName').value = '';
-        document.getElementById('tableNumber').value  = '';
-        document.getElementById('orderNotes').value   = '';
-        updateCartUI();
         closeCart();
 
         if (isCounter) {
           setTimeout(() => {
             closeSuccessModal();
             window.location.href = 'admin.html';
-          }, 1800);
+          }, 1200);
         }
       } catch (uiErr) {
         console.warn('[Cafe] Order placed, UI update issue:', uiErr);
+      } finally {
+        isSubmitting = false;
+        setPayButtonsDisabled(false);
       }
     }
 
@@ -500,8 +575,9 @@
     document.addEventListener('DOMContentLoaded', () => {
       const bindPay = (id, method, isCounter) => {
         const el = document.getElementById(id);
-        if (!el) { console.warn(`[Cafe] Button not found: ${id}`); return; }
+        if (!el) return;
         el.addEventListener('click', async () => {
+          if (isSubmitting) return;
           if (cart.length === 0) { alert('Cart is empty'); return; }
           const o = createOrder(method);
           if (o) await submitOrder(o, isCounter);
@@ -530,9 +606,14 @@
     window.addEventListener('error', (e) => {
       console.error('[Cafe] Uncaught error:', e.error || e.message);
     });
-    // Keep background promise errors from scaring users
     window.addEventListener('unhandledrejection', (e)=> {
       console.warn('[Cafe] Unhandled promise rejection:', e.reason);
+    });
+
+    // When returning via back/restore, keep inputs/cart blank and names randomized
+    window.addEventListener('pageshow', () => {
+      clearCustomerFields();
+      randomizeFieldNames();
     });
 
     document.getElementById('searchInput')?.addEventListener('input', () => renderMenu());
@@ -546,6 +627,9 @@
       renderCategoryTabs();
       renderMenu();
       updateCartUI();
+      // Ensure first open is clean & autofill-proof
+      clearCustomerFields();
+      randomizeFieldNames();
       lucide.createIcons();
       placeBaskets();
     });
