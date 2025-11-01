@@ -6,11 +6,14 @@
   <title>Cafe Admin — Order History</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
   </style>
 
   <script>
+    /* ---- Branding helpers (unchanged) ---- */
     const RAW_LOGO = "https://raw.githubusercontent.com/vsaipavan6/cafe/main/logo.png";
     const toRaw = (url) => {
       try{
@@ -24,7 +27,13 @@
     };
     const LOGO_URL = toRaw(RAW_LOGO) || "logo.png";
     const FAVICON_URL = LOGO_URL;
+
+    /* ---- Supabase config (your project) ---- */
+    const SUPABASE_URL  = "https://ihanajfastlgsqrrbmef.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloYW5hamZhc3RsZ3NxcnJibWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5OTg5MDMsImV4cCI6MjA3NzU3NDkwM30.FKcKzjeVf7bO6zDwPjRG70cLI0ca7C9PFhzjwOQUs0A";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   </script>
+
   <link id="dynamic-favicon" rel="icon" type="image/png" href="" />
   <link rel="icon" href="favicon.png" type="image/png" />
 </head>
@@ -72,6 +81,7 @@
   </main>
 
   <script>
+    /* ---------------- Branding init ---------------- */
     (function(){
       const img = document.getElementById('logoImg');
       if(img){ img.src = LOGO_URL; img.onerror = ()=>img.src="logo.png"; }
@@ -79,31 +89,50 @@
       if (fav) fav.href = FAVICON_URL || "favicon.png";
     })();
 
-    const HISTORY_KEY = 'cafe_history';
-    const loadHistory = ()=>JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    const saveHistory = (h)=>{
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
-      window.dispatchEvent(new StorageEvent('storage', { key: HISTORY_KEY }));
-    };
-
+    /* ---------------- State & helpers ------------- */
     let searchQuery = '';
+    let historyCache = []; // in-memory list of completed orders (last 365d)
 
-    function enforceHistoryRetention(){
-      const yearAgo = Date.now() - 365*24*60*60*1000;
-      const kept = loadHistory().filter(x=>new Date(x.timestamp).getTime()>=yearAgo);
-      saveHistory(kept);
-      return kept;
-    }
-
-    function rupee(n){ return `₹${n.toLocaleString()}`; }
-
+    function rupee(n){ return `₹${Number(n||0).toLocaleString()}`; }
     function formatDate(iso){
       const d = new Date(iso);
       return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     }
 
+    /* -------------- Fetch from Supabase ------------ */
+    async function fetchCompletedLastYear(){
+      const yearAgoISO = new Date(Date.now() - 365*24*60*60*1000).toISOString();
+
+      // We rely on table columns:
+      //   id (text pk), payload (jsonb), status (text), created_at (timestamptz)
+      // We pull only completed, and (for performance) do server-side created_at filter.
+      const { data, error } = await sb
+        .from('orders')
+        .select('id, status, payload, created_at')
+        .eq('status', 'completed')
+        .gte('created_at', yearAgoISO)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[History] fetch error:', error);
+        return [];
+      }
+
+      // Normalize rows to the payload shape you use in UI
+      return (data || []).map(r => {
+        const o = r.payload || {};
+        o.id = r.id || o.id;
+        o.status = r.status || o.status || 'completed';
+        // prefer payload timestamps if present, fall back to created_at
+        o.timestamp = o.timestamp || r.created_at;
+        o.completedAt = o.completedAt || r.created_at;
+        return o;
+      });
+    }
+
+    /* ---------------- Render rows ------------------ */
     function row(h){
-      const items = h.items.map(i=>`${i.name} × ${i.quantity}`).join(', ');
+      const items = (h.items || []).map(i=>`${i.name} × ${i.quantity}`).join(', ');
       const paymentIcon = h.payment?.status==='paid' 
         ? '<i data-lucide="check-circle" class="w-4 h-4 text-green-600 inline"></i>' 
         : '<i data-lucide="alert-circle" class="w-4 h-4 text-yellow-600 inline"></i>';
@@ -112,14 +141,14 @@
         <article class="bg-white rounded-xl shadow hover:shadow-md transition p-4">
           <div class="grid md:grid-cols-12 gap-3 items-start">
             <div class="md:col-span-2">
-              <div class="font-bold text-gray-800 text-sm">#${h.id.slice(-8)}</div>
+              <div class="font-bold text-gray-800 text-sm">#${String(h.id).slice(-8)}</div>
               <div class="text-xs text-gray-500 mt-1">
                 <i data-lucide="user" class="w-3 h-3 inline"></i>
-                ${h.customerName}
+                ${h.customerName || '-'}
               </div>
               <div class="text-xs text-gray-500">
                 <i data-lucide="table" class="w-3 h-3 inline"></i>
-                Table ${h.tableNumber}
+                Table ${h.tableNumber || '-'}
               </div>
             </div>
             
@@ -130,10 +159,10 @@
             
             <div class="md:col-span-2 text-center">
               <div class="text-xs text-gray-500 mb-1">Total</div>
-              <div class="text-lg font-bold text-amber-700">${rupee(h.totals.total)}</div>
+              <div class="text-lg font-bold text-amber-700">${rupee(h?.totals?.total)}</div>
               <div class="text-xs text-gray-500 mt-1">
                 ${paymentIcon}
-                ${h.payment?.method || 'N/A'}
+                ${h.payment?.method ? h.payment.method : 'N/A'}
               </div>
             </div>
             
@@ -163,21 +192,20 @@
       if(!searchQuery) return list;
       const q = searchQuery.toLowerCase();
       return list.filter(h => 
-        h.customerName.toLowerCase().includes(q) ||
-        h.tableNumber.toLowerCase().includes(q) ||
-        h.id.toLowerCase().includes(q) ||
-        h.items.some(i => i.name.toLowerCase().includes(q))
+        String(h.customerName || '').toLowerCase().includes(q) ||
+        String(h.tableNumber || '').toLowerCase().includes(q) ||
+        String(h.id || '').toLowerCase().includes(q) ||
+        (h.items || []).some(i => String(i.name || '').toLowerCase().includes(q))
       );
     }
 
-    function render(){
-      const kept = enforceHistoryRetention();
-      const list = filterHistory(kept);
+    async function render(){
+      const list = filterHistory(historyCache);
       const wrap = document.getElementById('historyWrap');
       const empty = document.getElementById('emptyState');
       const countEl = document.getElementById('historyCount');
-      
-      countEl.textContent = kept.length;
+
+      countEl.textContent = historyCache.length;
       wrap.innerHTML = list.map(row).join('');
       
       if(list.length===0) {
@@ -187,12 +215,12 @@
         empty.classList.add('hidden');
         wrap.classList.remove('hidden');
       }
-      
       lucide.createIcons();
     }
 
+    /* --------------- Export CSV (from cache) --------------- */
     function exportCSV(){
-      const data = loadHistory();
+      const data = historyCache;
       if(data.length === 0){
         alert('No data to export');
         return;
@@ -201,16 +229,16 @@
       const headers = ['Order ID', 'Customer', 'Table', 'Items', 'Subtotal', 'Service', 'Tax', 'Total', 'Payment Method', 'Payment Status', 'Placed At', 'Completed At', 'Notes'];
       const rows = data.map(h => [
         h.id,
-        h.customerName,
-        h.tableNumber,
-        h.items.map(i => `${i.name} x${i.quantity}`).join('; '),
-        h.totals.subtotal,
-        h.totals.svc,
-        h.totals.tax,
-        h.totals.total,
-        h.payment?.method || '',
-        h.payment?.status || '',
-        h.timestamp,
+        h.customerName || '',
+        h.tableNumber || '',
+        (h.items || []).map(i => `${i.name} x${i.quantity}`).join('; '),
+        h?.totals?.subtotal ?? '',
+        h?.totals?.svc ?? '',
+        h?.totals?.tax ?? '',
+        h?.totals?.total ?? '',
+        h?.payment?.method || '',
+        h?.payment?.status || '',
+        h.timestamp || '',
         h.completedAt || '',
         h.notes || ''
       ]);
@@ -228,27 +256,54 @@
       URL.revokeObjectURL(url);
     }
 
-    document.getElementById('purgeBtn').addEventListener('click', ()=>{
-      if(confirm('This will permanently delete all orders older than 1 year. Continue?')){
-        const kept = enforceHistoryRetention();
-        render();
-        alert(`History purged. ${kept.length} orders retained.`);
+    /* --------------- Purge >1yr (server) ------------------- */
+    async function purgeOlderThanYear(){
+      const cutoffISO = new Date(Date.now() - 365*24*60*60*1000).toISOString();
+      // NOTE: Requires a DELETE policy for anon (or use service key on a backend).
+      const { error } = await sb
+        .from('orders')
+        .delete()
+        .lt('created_at', cutoffISO)
+        .eq('status', 'completed');
+      if (error) {
+        console.warn('[History] purge error (likely RLS delete policy not set):', error);
+        alert('Could not purge on server. Ensure an RLS DELETE policy exists for table `orders`, or run the cleanup from a secure backend.');
+        return;
       }
-    });
+      await refresh(); // reload after purge
+      alert('History purged successfully (server).');
+    }
 
+    /* --------------- Refresh flow -------------------------- */
+    async function refresh(){
+      historyCache = await fetchCompletedLastYear();
+      await render();
+    }
+
+    /* --------------- Realtime updates ---------------------- */
+    function startRealtime(){
+      sb.channel('orders-history-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async (payload) => {
+          // Only refresh if a completed order was affected, or an order transitioned to completed
+          // Cheap approach: refetch; history size is bounded by 1 year.
+          await refresh();
+        })
+        .subscribe();
+    }
+
+    /* --------------- Events -------------------------------- */
     document.getElementById('exportBtn').addEventListener('click', exportCSV);
+    document.getElementById('purgeBtn').addEventListener('click', purgeOlderThanYear);
+    document.getElementById('searchInput').addEventListener('input', (e)=>{ searchQuery = e.target.value; render(); });
 
-    document.getElementById('searchInput').addEventListener('input', (e)=>{
-      searchQuery = e.target.value;
-      render();
-    });
-
-    window.addEventListener('storage', (e)=>{
-      if(e.key===HISTORY_KEY) render();
-    });
-
-    render();
-    lucide.createIcons();
+    /* --------------- Init ---------------------------------- */
+    (async function init(){
+      await refresh();
+      startRealtime();
+      // Optional periodic refresh
+      setInterval(refresh, 60000);
+      lucide.createIcons();
+    })();
   </script>
 </body>
 </html>

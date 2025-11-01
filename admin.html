@@ -6,16 +6,16 @@
   <title>Cafe Admin — Orders</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
-    @keyframes pulse-ring {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.1); opacity: 0.7; }
-    }
+    @keyframes pulse-ring { 0%,100%{transform:scale(1);opacity:1;} 50%{transform:scale(1.1);opacity:.7;} }
     .pulse-ring { animation: pulse-ring 2s ease-in-out infinite; }
   </style>
 
   <script>
+    /* ---- Branding URLs (unchanged) ---- */
     const RAW_LOGO = "https://raw.githubusercontent.com/vsaipavan6/cafe/main/logo.png";
     const toRaw = (url) => {
       try{
@@ -29,6 +29,11 @@
     };
     const LOGO_URL = toRaw(RAW_LOGO) || "logo.png";
     const FAVICON_URL = LOGO_URL;
+
+    /* ---- Supabase config (your project) ---- */
+    const SUPABASE_URL  = "https://ihanajfastlgsqrrbmef.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloYW5hamZhc3RsZ3NxcnJibWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5OTg5MDMsImV4cCI6MjA3NzU3NDkwM30.FKcKzjeVf7bO6zDwPjRG70cLI0ca7C9PFhzjwOQUs0A";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   </script>
   <link id="dynamic-favicon" rel="icon" type="image/png" href="" />
   <link rel="icon" href="favicon.png" type="image/png" />
@@ -40,7 +45,7 @@
         <img id="logoImg" src="" alt="Logo" class="w-10 h-10 rounded-full ring-2 ring-white/80 object-cover"/>
         <div>
           <h1 class="text-xl sm:text-2xl font-extrabold leading-tight">Cafe Admin — Orders</h1>
-          <p class="text-xs sm:text-sm text-amber-100">Live dashboard • Auto-refresh enabled</p>
+          <p class="text-xs sm:text-sm text-amber-100">Live dashboard • Realtime enabled</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -57,6 +62,7 @@
         <button class="tab px-3 py-2 rounded-full bg-white text-amber-800 border transition" data-filter="new"   type="button">New Orders</button>
         <button class="tab px-3 py-2 rounded-full bg-white text-amber-800 border transition" data-filter="pending" type="button">Payment Pending</button>
         <button class="tab px-3 py-2 rounded-full bg-white text-amber-800 border transition" data-filter="paid"    type="button">Payment Completed</button>
+        <button class="tab px-3 py-2 rounded-full bg-white text-amber-800 border transition" data-filter="completed"    type="button">Completed</button>
       </div>
       <div class="flex items-center gap-2">
         <span id="liveIndicator" class="flex items-center gap-2 text-xs text-green-600">
@@ -74,6 +80,7 @@
     <p id="emptyState" class="hidden text-center text-gray-500 mt-6">No orders to display.</p>
   </main>
 
+  <!-- Summary Modal -->
   <div id="summaryModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onclick="closeSummary()">
     <div class="bg-white rounded-2xl p-5 sm:p-6 w-[90%] max-w-xl shadow-2xl relative" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between mb-3">
@@ -87,6 +94,7 @@
   </div>
 
   <script>
+    /* -------------------- Branding init -------------------- */
     (function(){
       const img = document.getElementById('logoImg');
       if(img){ img.src = LOGO_URL; img.onerror = ()=>img.src="logo.png"; }
@@ -94,48 +102,34 @@
       if (fav) fav.href = FAVICON_URL || "favicon.png";
     })();
 
-    const ORDERS_KEY = 'cafe_orders';
-    const HISTORY_KEY = 'cafe_history';
-    const ch = 'BroadcastChannel' in window ? new BroadcastChannel('cafe_orders') : null;
-
-    const load = (k)=>JSON.parse(localStorage.getItem(k)||'[]');
-    const save = (k,v)=>{
-      localStorage.setItem(k,JSON.stringify(v));
-      window.dispatchEvent(new StorageEvent('storage', { key: k }));
-    };
-    const loadOrders = ()=>load(ORDERS_KEY);
-    const saveOrders = (o)=>save(ORDERS_KEY,o);
-    const loadHistory = ()=>load(HISTORY_KEY);
-    const saveHistory = (h)=>save(HISTORY_KEY,h);
-
-    function enforceHistoryRetention(){
-      const yearAgo = Date.now() - 365*24*60*60*1000;
-      const h = loadHistory().filter(x => new Date(x.timestamp).getTime() >= yearAgo);
-      saveHistory(h);
-    }
-
+    /* -------------------- State & helpers ------------------ */
     let currentFilter = 'all';
+    // cache map: id -> payload (for easy update)
+    const cacheById = new Map();
+
+    function rupee(n){ return `₹${n}`; }
 
     function filterOrders(all){
       if(currentFilter==='all') return all;
       if(currentFilter==='new') return all.filter(o => o.status==='new');
       if(currentFilter==='pending') return all.filter(o => o.payment?.status==='pending');
       if(currentFilter==='paid') return all.filter(o => o.payment?.status==='paid');
+      if(currentFilter==='completed') return all.filter(o => o.status==='completed');
       return all;
     }
 
-    function rupee(n){ return `₹${n}`; }
-
     function card(order){
       const itemsHtml = order.items.map(i=>`<li class="flex justify-between text-sm"><span>${i.name} × ${i.quantity}</span><span>${rupee(i.price*i.quantity)}</span></li>`).join('');
-      
+
       const paymentBadge = order.payment?.status==='paid'
         ? `<span class="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700 font-medium">✓ Paid</span>`
         : `<span class="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 font-medium">⏱ Pending</span>`;
-      
+
       const statusBadge = order.status === 'new'
         ? `<span class="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 font-medium">New</span>`
-        : '';
+        : order.status === 'completed'
+          ? `<span class="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-700 font-medium">Completed</span>`
+          : '';
 
       return `
         <article class="bg-white rounded-xl shadow hover:shadow-lg transition p-4 flex flex-col gap-3">
@@ -166,29 +160,78 @@
               <span class="font-medium">Payment:</span> ${order.payment.method.toUpperCase()}
             </div>
             <div class="flex gap-2">
-              ${order.payment.status==='pending'
+              ${order.payment.status==='pending' && order.status!=='completed'
                 ? `<button data-action="mark-paid" data-id="${order.id}" class="px-3 py-2 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1 transition shadow" type="button">
                     <i data-lucide="check-circle" class="w-3 h-3"></i> Mark Paid
                   </button>`
                 : ``}
-              <button data-action="serve" data-id="${order.id}" class="px-3 py-2 text-xs ${order.payment.status==='paid' ? 'bg-amber-600' : 'bg-gray-400'} text-white rounded-lg hover:opacity-90 flex items-center gap-1 transition shadow" type="button">
-                <i data-lucide="utensils" class="w-3 h-3"></i> Complete
-              </button>
+              ${order.status!=='completed'
+                ? `<button data-action="serve" data-id="${order.id}" class="px-3 py-2 text-xs ${order.payment.status==='paid' ? 'bg-amber-600' : 'bg-gray-400'} text-white rounded-lg hover:opacity-90 flex items-center gap-1 transition shadow" type="button">
+                    <i data-lucide="utensils" class="w-3 h-3"></i> Complete
+                  </button>`
+                : ``}
             </div>
           </div>
         </article>`;
     }
 
-    function renderOrders(){
-      enforceHistoryRetention();
-      const wrap = document.getElementById('ordersWrap');
-      const empty = document.getElementById('emptyState');
-      const all = loadOrders();
+    /* ------------------- Data: Supabase CRUD ------------------- */
+    async function fetchOrders(){
+      const { data, error } = await sb
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) { console.error('[Admin] fetchOrders error:', error); return []; }
+
+      // Normalize: use payload as main object; ensure id/status/timestamps are present
+      const list = (data || []).map(r => {
+        const o = r.payload || {};
+        // trust DB status; also keep o.status in sync
+        o.status = r.status || o.status || 'new';
+        // keep the id from row (authoritative)
+        o.id = r.id || o.id;
+        // fall back to DB created_at if payload timestamp missing
+        if (!o.timestamp) o.timestamp = r.created_at;
+        // cache
+        cacheById.set(o.id, { rowId: r.id, payload: o });
+        return o;
+      });
+      return list;
+    }
+
+    function getPayload(id){ return cacheById.get(id)?.payload; }
+
+    async function markPaid(id){
+      const base = getPayload(id);
+      if (!base) return;
+      const next = { ...base, status: 'paid', paidAt: new Date().toISOString(), payment: { ...base.payment, status: 'paid' } };
+      const { error } = await sb.from('orders')
+        .update({ status: 'paid', payload: next })
+        .eq('id', id);
+      if (error) console.error('[Admin] markPaid error:', error);
+    }
+
+    async function serveOrder(id){
+      const base = getPayload(id);
+      if (!base) return;
+      const next = { ...base, status: 'completed', completedAt: new Date().toISOString() };
+      const { error } = await sb.from('orders')
+        .update({ status: 'completed', payload: next })
+        .eq('id', id);
+      if (error) console.error('[Admin] serveOrder error:', error);
+    }
+
+    /* ------------------- Render + Realtime --------------------- */
+    async function render(){
+      const all = await fetchOrders();
       const list = filterOrders(all);
 
+      const wrap = document.getElementById('ordersWrap');
+      const empty = document.getElementById('emptyState');
+
       wrap.innerHTML = list.map(card).join('');
-      if(list.length===0){ 
-        empty.classList.remove('hidden'); 
+      if(list.length===0){
+        empty.classList.remove('hidden');
         wrap.classList.add('hidden');
       } else {
         empty.classList.add('hidden');
@@ -197,51 +240,31 @@
       lucide.createIcons();
     }
 
-    function markPaid(id){
-      const orders = loadOrders();
-      const idx = orders.findIndex(o=>o.id===id);
-      if(idx>-1){
-        orders[idx].payment.status = 'paid';
-        orders[idx].status = 'paid';
-        orders[idx].paidAt = new Date().toISOString();
-        saveOrders(orders);
-        renderOrders();
-        if (ch) ch.postMessage({ type: 'order-updated', orderId: id, status: 'paid' });
-      }
+    function startRealtime(){
+      sb.channel('orders-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async () => {
+          await render();
+        })
+        .subscribe();
     }
 
-    function serveOrder(id){
-      const orders = loadOrders();
-      const idx = orders.findIndex(o=>o.id===id);
-      if(idx>-1){
-        const [served] = orders.splice(idx,1);
-        served.status = 'completed';
-        served.completedAt = new Date().toISOString();
-        const hist = loadHistory();
-        hist.unshift(served);
-        saveHistory(hist);
-        saveOrders(orders);
-        renderOrders();
-        if (ch) ch.postMessage({ type: 'order-completed', orderId: id });
-      }
-    }
+    /* ------------------- Summary (24h) ------------------------- */
+    async function openSummary(){
+      // Pull fresh (so summary is accurate)
+      const all = await fetchOrders();
+      const since = Date.now() - 24*60*60*1000;
+      const recent = all.filter(o => new Date(o.timestamp).getTime() >= since);
 
-    function openSummary(){
-      const since = Date.now()-24*60*60*1000;
-      const allActive = loadOrders().filter(o=>new Date(o.timestamp).getTime()>=since);
-      const hist = loadHistory().filter(o=>new Date(o.timestamp).getTime()>=since);
-      const all = [...allActive, ...hist];
-
-      const paid = all.filter(o=>o.payment?.status==='paid');
-      const pending = all.filter(o=>o.payment?.status==='pending');
-      const completed = hist.length;
-      const rev = paid.reduce((s,o)=>s+(o?.totals?.total||0),0);
+      const paid = recent.filter(o => (o.payment?.status === 'paid'));
+      const pending = recent.filter(o => (o.payment?.status === 'pending'));
+      const completed = recent.filter(o => o.status === 'completed').length;
+      const rev = paid.reduce((s,o)=> s + (o?.totals?.total || 0), 0);
 
       const body = document.getElementById('summaryBody');
       body.innerHTML = `
         <div class="grid grid-cols-2 gap-3 p-4 bg-amber-50 rounded-lg">
           <div class="text-center">
-            <div class="text-2xl font-bold text-amber-700">${all.length}</div>
+            <div class="text-2xl font-bold text-amber-700">${recent.length}</div>
             <div class="text-xs text-gray-600">Total Orders</div>
           </div>
           <div class="text-center">
@@ -265,9 +288,9 @@
       document.getElementById('summaryModal').classList.remove('hidden');
       lucide.createIcons();
     }
-    
     const closeSummary = ()=>{ document.getElementById('summaryModal').classList.add('hidden'); };
 
+    /* ------------------- Events ------------------------------- */
     document.addEventListener('click', (e)=>{
       const btn = e.target.closest('button');
       if(!btn) return;
@@ -287,12 +310,12 @@
         t.classList.add('bg-amber-100','font-semibold');
         t.classList.remove('border');
         currentFilter = t.getAttribute('data-filter');
-        renderOrders();
+        render();
       });
     });
 
-    document.getElementById('refreshBtn').addEventListener('click', ()=>{
-      renderOrders();
+    document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+      await render();
       const icon = document.querySelector('#refreshBtn i');
       if(icon){
         icon.style.transform = 'rotate(360deg)';
@@ -300,26 +323,21 @@
         setTimeout(()=>{ icon.style.transform = 'rotate(0deg)'; }, 500);
       }
     });
-    
+
     document.getElementById('last24Btn').addEventListener('click', openSummary);
     document.getElementById('closeSummary').addEventListener('click', closeSummary);
     document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeSummary(); });
 
-    if(ch) {
-      ch.onmessage = (ev)=>{ 
-        if(ev?.data?.type==='new-order' || ev?.data?.type==='order-updated' || ev?.data?.type==='order-completed') {
-          renderOrders();
-        }
-      };
-    }
-    
-    window.addEventListener('storage', (e)=>{
-      if(e.key===ORDERS_KEY || e.key===HISTORY_KEY) renderOrders();
+    /* ------------------- Init ------------------------------- */
+    document.addEventListener('DOMContentLoaded', () => {
+      // first paint
+      render();
+      // realtime subscribe
+      startRealtime();
+      // optional periodic refresh
+      setInterval(render, 60000);
+      lucide.createIcons();
     });
-
-    setInterval(renderOrders, 60000); // Auto refresh every 1 minute
-    renderOrders();
-    lucide.createIcons();
   </script>
 </body>
 </html>

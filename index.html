@@ -6,6 +6,8 @@
   <title>The Daily Grind & Dough Co. — Digital Menu</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -13,6 +15,7 @@
   </style>
 
   <script>
+    /* -------------------------- Branding image helpers -------------------------- */
     const RAW_LOGO   = "https://raw.githubusercontent.com/vsaipavan6/cafe/main/logo.png";
     const RAW_WIFIQR = "https://raw.githubusercontent.com/vsaipavan6/cafe/main/wifi.jpg";
 
@@ -30,6 +33,16 @@
     const LOGO_URL    = toRaw(RAW_LOGO)   || "logo.png";
     const FAVICON_URL = LOGO_URL;
     const WIFI_QR_URL = toRaw(RAW_WIFIQR) || "wifi.jpg";
+
+    /* ---------------------------- Supabase settings ---------------------------- */
+    // Using the project URL & anon key you provided
+    const SUPABASE_URL  = "https://ihanajfastlgsqrrbmef.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloYW5hamZhc3RsZ3NxcnJibWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5OTg5MDMsImV4cCI6MjA3NzU3NDkwM30.FKcKzjeVf7bO6zDwPjRG70cLI0ca7C9PFhzjwOQUs0A";
+
+    let sb; // client created after supabase script loads
+    document.addEventListener('DOMContentLoaded', () => {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    });
   </script>
 
   <link id="dynamic-favicon" rel="icon" type="image/png" href="" />
@@ -196,6 +209,7 @@
   </button>
 
   <script>
+    /* ------------------------------ Icons & UI ------------------------------ */
     const basketSVG = (size=24) => `
       <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path d="M3 10h18l-1.2 9a3 3 0 0 1-3 2.6H7.2A3 3 0 0 1 4.2 19L3 10Z" fill="#F59E0B"/>
@@ -211,6 +225,7 @@
       });
     };
 
+    /* ------------------------------- Menu Data ------------------------------ */
     const menuCategories = [
       { name: 'Coffee', items: [
           { id: 1, name: 'Espresso', price: 80, description: 'Classic Italian single shot' },
@@ -242,19 +257,13 @@
         ]},
     ];
 
-    const LS_KEY = 'cafe_orders';
+    /* ------------------------ Local cart (kept as-is) ----------------------- */
     const CART_KEY = 'cafe_cart';
-    const ch = 'BroadcastChannel' in window ? new BroadcastChannel('cafe_orders') : null;
-
-    const loadOrders = () => JSON.parse(localStorage.getItem(LS_KEY) || '[]');
-    const saveOrders = (orders) => {
-      localStorage.setItem(LS_KEY, JSON.stringify(orders));
-      window.dispatchEvent(new StorageEvent('storage', { key: LS_KEY }));
-    };
-
     let cart = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
-    let activeCategory = 'All';
+    function persistCart(){ localStorage.setItem(CART_KEY, JSON.stringify(cart)); }
 
+    /* -------------------------- Category & rendering ------------------------ */
+    let activeCategory = 'All';
     function renderCategoryTabs() {
       const tabs = ['All', ...menuCategories.map(c => c.name)];
       const wrap = document.getElementById('categoryTabs');
@@ -303,8 +312,7 @@
       placeBaskets();
     }
 
-    function persistCart(){ localStorage.setItem(CART_KEY, JSON.stringify(cart)); }
-
+    /* ------------------------------ Cart logic ------------------------------ */
     function addToCart(itemId) {
       const item = menuCategories.flatMap(c => c.items).find(i => i.id === itemId);
       if (!item) return;
@@ -322,13 +330,8 @@
       updateCartUI();
     }
 
-    function removeFromCart(itemId) {
-      cart = cart.filter(i => i.id !== itemId);
-      updateCartUI();
-    }
-
+    function removeFromCart(itemId) { cart = cart.filter(i => i.id !== itemId); updateCartUI(); }
     function clearCart(){ cart = []; updateCartUI(); }
-
     function getSubtotal() { return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0); }
 
     function updateCartUI() {
@@ -406,9 +409,11 @@
       placeBaskets();
     }
 
+    /* -------------------------- Cart overlay helpers ------------------------ */
     function toggleCart() { document.getElementById('cartOverlay').classList.toggle('hidden'); }
     function closeCart() { document.getElementById('cartOverlay').classList.add('hidden'); }
 
+    /* ---------------------------- Wi-Fi modal UI ---------------------------- */
     function openWifiModal(){
       const img = document.getElementById('wifiImg');
       if (img && WIFI_QR_URL) img.src = WIFI_QR_URL;
@@ -417,6 +422,7 @@
     }
     function closeWifiModal(){ document.getElementById('wifiModal').classList.add('hidden'); }
 
+    /* ----------------------------- Order builder ---------------------------- */
     function createOrder(paymentMethod) {
       const name = document.getElementById('customerName').value.trim();
       const table = document.getElementById('tableNumber').value.trim();
@@ -453,54 +459,67 @@
       return order;
     }
 
-    function submitOrder(order, isCounter = false) {
-      const orders = loadOrders();
-      orders.unshift(order);
-      saveOrders(orders);
+    /* ------------------------ Submit -> Supabase insert ---------------------- */
+    async function submitOrder(order, isCounter = false) {
+      try {
+        if (!sb) { alert("Order service not ready. Please try again."); return; }
 
-      if (ch) ch.postMessage({ type: 'new-order', order });
+        // Write to Supabase (orders table)
+        const { error } = await sb
+          .from('orders')
+          .insert({ id: order.id, payload: order, status: order.status });
 
-      // Show success modal
-      document.getElementById('modalOrderId').textContent = '#' + order.id.slice(-8);
-      document.getElementById('modalTable').textContent = order.tableNumber;
-      document.getElementById('modalTotal').textContent = '₹' + order.totals.total;
-      document.getElementById('successModal').classList.remove('hidden');
-      lucide.createIcons();
+        if (error) {
+          console.error('[Cafe] Supabase insert failed:', error);
+          alert('Failed to place order. Please try again.');
+          return;
+        }
 
-      // Reset cart and form
-      cart = [];
-      document.getElementById('customerName').value = '';
-      document.getElementById('tableNumber').value = '';
-      document.getElementById('orderNotes').value = '';
-      updateCartUI();
-      closeCart();
+        // Show success modal
+        document.getElementById('modalOrderId').textContent = '#' + order.id.slice(-8);
+        document.getElementById('modalTable').textContent = order.tableNumber;
+        document.getElementById('modalTotal').textContent = '₹' + order.totals.total;
+        document.getElementById('successModal').classList.remove('hidden');
+        lucide.createIcons();
 
-      if (isCounter) {
-        setTimeout(() => {
-          closeSuccessModal();
-          window.location.href = 'admin.html';
-        }, 1800);
+        // Reset cart and form
+        cart = [];
+        document.getElementById('customerName').value = '';
+        document.getElementById('tableNumber').value = '';
+        document.getElementById('orderNotes').value = '';
+        updateCartUI();
+        closeCart();
+
+        if (isCounter) {
+          setTimeout(() => {
+            closeSuccessModal();
+            window.location.href = 'admin.html';
+          }, 1800);
+        }
+      } catch (e) {
+        console.error('[Cafe] submitOrder error:', e);
+        alert('Something went wrong. Please try again.');
       }
     }
 
-    function closeSuccessModal() {
-      document.getElementById('successModal').classList.add('hidden');
-    }
+    function closeSuccessModal() { document.getElementById('successModal').classList.add('hidden'); }
 
-    // HARD BIND pay buttons after DOM ready (no e.target quirks)
+    /* ------------------------------ Bind buttons ---------------------------- */
     document.addEventListener('DOMContentLoaded', () => {
       const bindPay = (id, method, isCounter) => {
         const el = document.getElementById(id);
         if (!el) { console.warn(`[Cafe] Button not found: ${id}`); return; }
-        el.addEventListener('click', () => {
+        el.addEventListener('click', async () => {
+          if (cart.length === 0) { alert('Cart is empty'); return; }
           const o = createOrder(method);
-          if (o) submitOrder(o, isCounter);
+          if (o) await submitOrder(o, isCounter);
         });
       };
       bindPay('payCounterBtn', 'counter', true);
       bindPay('paymentBtn',    'online',  false);
     });
 
+    /* ------------------------------- Branding ------------------------------- */
     function initBranding(){
       const logo = document.getElementById('logoImg');
       const hero = document.getElementById('heroLogo');
@@ -515,24 +534,25 @@
       if (fav) fav.href = FAVICON_URL || "favicon.png";
     }
 
-    // Basic error surfacing while debugging
+    /* ----------------------------- Misc handlers ---------------------------- */
     window.addEventListener('error', (e) => {
       console.error('[Cafe] Uncaught error:', e.error || e.message);
     });
 
     document.getElementById('searchInput')?.addEventListener('input', () => renderMenu());
     document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeWifiModal(); closeCart(); closeSuccessModal(); } });
+
+    /* --------------------------------- Init -------------------------------- */
     document.addEventListener('DOMContentLoaded', () => {
       placeBaskets();
       document.getElementById('wifiChip')?.addEventListener('click', openWifiModal);
+      initBranding();
+      renderCategoryTabs();
+      renderMenu();
+      updateCartUI();
+      lucide.createIcons();
+      placeBaskets();
     });
-
-    initBranding();
-    renderCategoryTabs();
-    renderMenu();
-    updateCartUI();
-    lucide.createIcons();
-    placeBaskets();
   </script>
 </body>
 </html>
