@@ -8,20 +8,39 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
-    /* Hide number input spinners for a cleaner look (mobile/desktop) */
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
   </style>
 
-  <!-- Brand assets (replace with your hosted files) -->
+  <!-- Brand assets (you can keep your GitHub links; code will normalize them) -->
   <script>
-    const LOGO_URL = "https://github.com/vsaipavan6/img/logo.png"; // replace with your cafe logo URL
-    const FAVICON_URL = LOGO_URL; // replace with your favicon URL
-    const WIFI_QR_URL = "https://github.com/vsaipavan6/img/wifi.jpg"; // replace with your hosted Wi‑Fi QR image URL
+    // Your current links:
+    const RAW_LOGO   = "https://github.com/vsaipavan6/cafe/blob/main/logo.png";
+    const RAW_WIFIQR = "https://github.com/vsaipavan6/cafe/blob/main/wifi.jpg";
+
+    // --- Helper: convert GitHub BLOB URLs to RAW, else leave as-is ---
+    const toRaw = (url) => {
+      try {
+        if (!url) return "";
+        // If it's already raw or a relative path, return as-is
+        if (/raw\.githubusercontent\.com|^\.?\/|^https?:\/\/[^/]+\.github\.io/.test(url)) return url;
+        // Convert https://github.com/<u>/<r>/blob/<branch>/path -> raw.githubusercontent.com/<u>/<r>/<branch>/path
+        if (/https?:\/\/github\.com\/.+\/blob\//.test(url)) {
+          return url.replace("https://github.com/", "https://raw.githubusercontent.com/").replace("/blob/", "/");
+        }
+        return url;
+      } catch { return url; }
+    };
+
+    // Final URLs with local fallbacks (works on GitHub Pages if files exist beside index.html)
+    const LOGO_URL    = toRaw(RAW_LOGO)   || "logo.png";
+    const FAVICON_URL = LOGO_URL; // use logo as favicon (or replace with "favicon.png")
+    const WIFI_QR_URL = toRaw(RAW_WIFIQR) || "wifi.jpg";
   </script>
 
-  <!-- Favicon (set at runtime so you only change FAVICON_URL once) -->
+  <!-- Favicon (set at runtime; static fallback below improves reliability) -->
   <link id="dynamic-favicon" rel="icon" type="image/png" href="" />
+  <link rel="icon" href="favicon.png" type="image/png" /> <!-- optional static fallback if you add favicon.png -->
 </head>
 <body class="bg-gradient-to-br from-amber-50 to-orange-50 min-h-screen">
   <!-- Header -->
@@ -64,7 +83,7 @@
         <h2 class="text-2xl sm:text-3xl font-bold text-amber-800 mb-2">Welcome to The Daily Grind & Dough Co.</h2>
         <p class="text-gray-600">Authentic Italian-inspired coffee, fresh bakes, and quick bites. Tap to add, customize quantities, and pay at the counter or via UPI/QR (integration-ready).</p>
         <div class="mt-4 flex flex-wrap gap-3 text-sm">
-          <button id="wifiChip" class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 transition cursor-pointer">Free Wi‑Fi</button>
+          <button id="wifiChip" class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 transition cursor-pointer">Free Wi-Fi</button>
           <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800">Freshly Baked Daily</span>
           <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800">Vegetarian Options</span>
           <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800">Takeaway Available</span>
@@ -131,17 +150,17 @@
     </aside>
   </div>
 
-  <!-- Wi‑Fi QR Modal -->
+  <!-- Wi-Fi QR Modal -->
   <div id="wifiModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50" onclick="closeWifiModal()">
     <div class="bg-white rounded-2xl p-4 sm:p-6 max-w-xs sm:max-w-md w-[90%] shadow-2xl" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-lg font-bold text-gray-800">Free Wi‑Fi</h3>
-        <button onclick="closeWifiModal()" class="text-gray-500 hover:text-gray-700" aria-label="Close Wi‑Fi modal">
+        <h3 class="text-lg font-bold text-gray-800">Free Wi-Fi</h3>
+        <button onclick="closeWifiModal()" class="text-gray-500 hover:text-gray-700" aria-label="Close Wi-Fi modal">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <img id="wifiImg" src="" alt="Wi‑Fi QR Code" class="w-full rounded-lg border border-gray-200"/>
-      <p class="text-xs text-gray-500 mt-2">Scan this QR to connect to Wi‑Fi.</p>
+      <img id="wifiImg" src="" alt="Wi-Fi QR Code" class="w-full rounded-lg border border-gray-200"/>
+      <p class="text-xs text-gray-500 mt-2">Scan this QR to connect to Wi-Fi.</p>
     </div>
   </div>
 
@@ -368,7 +387,7 @@
     function toggleCart() { document.getElementById('cartOverlay').classList.toggle('hidden'); }
     function closeCart() { document.getElementById('cartOverlay').classList.add('hidden'); }
 
-    // Wi‑Fi modal helpers
+    // Wi-Fi modal helpers
     function openWifiModal(){
       const img = document.getElementById('wifiImg');
       if (img && WIFI_QR_URL) img.src = WIFI_QR_URL;
@@ -386,9 +405,6 @@
       const orderData = { customerName, tableNumber, notes: orderNotes, items: cart, subtotal: getSubtotal(), timestamp: new Date().toISOString() };
 
       console.log('Order placed:', orderData);
-      // TODO: POST to your server here. Example:
-      // await fetch('/api/orders', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(orderData) });
-
       document.getElementById('successModal').classList.remove('hidden');
       setTimeout(() => {
         cart = [];
@@ -403,14 +419,27 @@
 
     // ===== Initialize =====
     function initBranding(){
-      document.getElementById('logoImg').src = LOGO_URL;
-      document.getElementById('heroLogo').src = LOGO_URL;
-      document.getElementById('dynamic-favicon').href = FAVICON_URL;
+      const logo = document.getElementById('logoImg');
+      const hero = document.getElementById('heroLogo');
+      const fav  = document.getElementById('dynamic-favicon');
+
+      const setSrc = (img, url, fallback) => {
+        if (!img) return;
+        img.src = url || fallback;
+        img.onerror = () => { if (fallback) img.src = fallback; };
+      };
+
+      setSrc(logo, LOGO_URL, "logo.png");
+      setSrc(hero, LOGO_URL, "logo.png");
+      if (fav) fav.href = FAVICON_URL || "favicon.png";
     }
 
     document.getElementById('searchInput')?.addEventListener('input', () => renderMenu());
     document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeWifiModal(); });
-    document.addEventListener('DOMContentLoaded', () => { placeBaskets(); document.getElementById('wifiChip')?.addEventListener('click', openWifiModal); });
+    document.addEventListener('DOMContentLoaded', () => { 
+      placeBaskets(); 
+      document.getElementById('wifiChip')?.addEventListener('click', openWifiModal); 
+    });
 
     initBranding();
     renderCategoryTabs();
@@ -421,7 +450,3 @@
   </script>
 </body>
 </html>
-
-
-
-
