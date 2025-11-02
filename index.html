@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>The Daily Grind & Dough Co. — Digital Menu</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+  <!-- Load Lucide Icons first -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -249,6 +250,17 @@
       });
     };
 
+    // Safe Lucide icons creation with error handling
+    function createLucideIcons() {
+      try {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+          lucide.createIcons();
+        }
+      } catch (error) {
+        console.warn('Lucide icons not available:', error);
+      }
+    }
+
     /* ------------------------------- Menu Data ------------------------------ */
     const menuCategories = [
       { name: 'Coffee', items: [
@@ -315,6 +327,13 @@
       clearCustomerFields();
       randomizeFieldNames();
       updateCartUI();
+      renderMenu();
+    }
+
+    /* ------------------------ Cart qty helper (NEW) ------------------------- */
+    function getItemQty(itemId) {
+      const it = cart.find(i => i.id === itemId);
+      return it ? it.quantity : 0;
     }
 
     /* -------------------------- Category & rendering ------------------------ */
@@ -328,6 +347,7 @@
       wrap.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => { activeCategory = btn.dataset.cat; renderCategoryTabs(); renderMenu(); }));
     }
 
+    /* ---------------------- Homepage menu (UPDATED) ------------------------- */
     function renderMenu() {
       const container = document.getElementById('menuContainer');
       const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
@@ -343,7 +363,9 @@
             <span class="h-1 w-16 bg-amber-500 rounded"></span>
           </div>
           <div class="grid sm:grid-cols-2 gap-4">
-            ${items.map(item => `
+            ${items.map(item => {
+              const qty = getItemQty(item.id);
+              return `
               <article class="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition">
                 <div class="flex justify-between items-start gap-3">
                   <div class="flex-1">
@@ -351,43 +373,95 @@
                     <p class="text-sm text-gray-600 mt-1">${item.description}</p>
                     <p class="text-xl font-bold text-amber-600 mt-2">₹${item.price}</p>
                   </div>
-                  <button type="button" onclick="addToCart(${item.id})" class="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition flex items-center gap-2">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    Add
-                  </button>
+                  ${
+                    qty > 0
+                      ? `
+                        <div class="flex items-center gap-2 bg-amber-50 rounded-lg p-1 border border-amber-200">
+                          <button type="button"
+                                  class="w-8 h-8 flex items-center justify-center text-amber-700 hover:bg-amber-100 rounded font-bold transition-colors"
+                                  aria-label="Decrease quantity"
+                                  onclick="updateQuantity(${item.id}, -1)">
+                            &minus;
+                          </button>
+                          <span class="font-semibold w-8 text-center text-amber-800">${qty}</span>
+                          <button type="button"
+                                  class="w-8 h-8 flex items-center justify-center text-amber-700 hover:bg-amber-100 rounded font-bold transition-colors"
+                                  aria-label="Increase quantity"
+                                  onclick="updateQuantity(${item.id}, 1)">
+                            +
+                          </button>
+                        </div>
+                      `
+                      : `
+                        <button type="button"
+                                onclick="addToCart(${item.id})"
+                                class="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition flex items-center gap-2 shadow-sm">
+                          <i data-lucide="plus" class="w-4 h-4"></i>
+                          Add
+                        </button>
+                      `
+                  }
                 </div>
-              </article>
-            `).join('')}
+              </article>`;
+            }).join('')}
           </div>
         </section>`;
       }).join('');
 
       container.innerHTML = html || '<p class="text-center text-gray-500">No matching items.</p>';
-      lucide.createIcons();
+      createLucideIcons(); // Use safe function instead of direct lucide.createIcons()
       placeBaskets();
     }
 
     /* ------------------------------ Cart logic ------------------------------ */
     function addToCart(itemId) {
+      console.log('Adding item to cart:', itemId);
       const item = menuCategories.flatMap(c => c.items).find(i => i.id === itemId);
       if (!item) return;
       const existing = cart.find(i => i.id === itemId);
-      if (existing) { existing.quantity += 1; }
-      else { cart.push({ ...item, quantity: 1 }); }
+      if (existing) { 
+        existing.quantity += 1; 
+      } else { 
+        cart.push({ ...item, quantity: 1 }); 
+      }
+      persistCart();
       updateCartUI();
+      renderMenu(); // Refresh homepage to show quantity controls
     }
 
     function updateQuantity(itemId, change) {
+      console.log('Updating quantity for item:', itemId, 'change:', change);
       const idx = cart.findIndex(i => i.id === itemId);
       if (idx === -1) return;
+      
       cart[idx].quantity += change;
-      if (cart[idx].quantity <= 0) cart.splice(idx, 1);
+      
+      if (cart[idx].quantity <= 0) {
+        cart.splice(idx, 1);
+      }
+      
+      persistCart();
       updateCartUI();
+      renderMenu(); // Refresh homepage to update quantity or revert to Add button
     }
 
-    function removeFromCart(itemId) { cart = cart.filter(i => i.id !== itemId); updateCartUI(); }
-    function clearCart(){ cart = []; updateCartUI(); }
-    function getSubtotal() { return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0); }
+    function removeFromCart(itemId) {
+      cart = cart.filter(i => i.id !== itemId);
+      persistCart();
+      updateCartUI();
+      renderMenu();
+    }
+
+    function clearCart(){
+      cart = [];
+      persistCart();
+      updateCartUI();
+      renderMenu();
+    }
+
+    function getSubtotal() { 
+      return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0); 
+    }
 
     function updateCartUI() {
       const cartItems = document.getElementById('cartItems');
@@ -432,10 +506,10 @@
               </button>
             </div>
             <div class="flex justify-between items-center">
-              <div class="flex items-center gap-3 bg-white rounded-lg p-1">
-                <button type="button" onclick="updateQuantity(${item.id}, -1)" class="text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded font-bold" title="Decrease">&minus;</button>
+              <div class="flex items-center gap-3 bg-white rounded-lg p-1 border border-gray-200">
+                <button type="button" onclick="updateQuantity(${item.id}, -1)" class="w-8 h-8 flex items-center justify-center text-amber-700 bg-amber-50 hover:bg-amber-100 rounded font-bold transition-colors" title="Decrease quantity">&minus;</button>
                 <span class="font-semibold w-8 text-center">${item.quantity}</span>
-                <button type="button" onclick="updateQuantity(${item.id}, 1)" class="text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded font-bold" title="Increase">+</button>
+                <button type="button" onclick="updateQuantity(${item.id}, 1)" class="w-8 h-8 flex items-center justify-center text-amber-700 bg-amber-50 hover:bg-amber-100 rounded font-bold transition-colors" title="Increase quantity">+</button>
               </div>
               <span class="font-bold text-amber-600">₹${item.price * item.quantity}</span>
             </div>
@@ -457,25 +531,32 @@
         payCounterBtn.classList.remove('hidden');
         clearCartBtn.classList.remove('hidden');
 
-        lucide.createIcons();
+        createLucideIcons(); // Use safe function instead of direct lucide.createIcons()
       }
 
-      persistCart();
       placeBaskets();
     }
 
     /* -------------------------- Cart overlay helpers ------------------------ */
-    function toggleCart() { document.getElementById('cartOverlay').classList.toggle('hidden'); }
-    function closeCart() { document.getElementById('cartOverlay').classList.add('hidden'); }
+    function toggleCart() { 
+      document.getElementById('cartOverlay').classList.toggle('hidden'); 
+    }
+    
+    function closeCart() { 
+      document.getElementById('cartOverlay').classList.add('hidden'); 
+    }
 
     /* ---------------------------- Wi-Fi modal UI ---------------------------- */
     function openWifiModal(){
       const img = document.getElementById('wifiImg');
       if (img && WIFI_QR_URL) img.src = WIFI_QR_URL;
       document.getElementById('wifiModal').classList.remove('hidden');
-      lucide.createIcons();
+      createLucideIcons(); // Use safe function instead of direct lucide.createIcons()
     }
-    function closeWifiModal(){ document.getElementById('wifiModal').classList.add('hidden'); }
+    
+    function closeWifiModal(){ 
+      document.getElementById('wifiModal').classList.add('hidden'); 
+    }
 
     /* ----------------------------- Order builder ---------------------------- */
     function createOrder(paymentMethod) {
@@ -552,7 +633,7 @@
         document.getElementById('modalTable').textContent   = order.tableNumber;
         document.getElementById('modalTotal').textContent   = '₹' + order.totals.total;
         document.getElementById('successModal').classList.remove('hidden');
-        lucide.createIcons();
+        createLucideIcons(); // Use safe function instead of direct lucide.createIcons()
         closeCart();
 
         if (isCounter) {
@@ -569,7 +650,9 @@
       }
     }
 
-    function closeSuccessModal() { document.getElementById('successModal').classList.add('hidden'); }
+    function closeSuccessModal() { 
+      document.getElementById('successModal').classList.add('hidden'); 
+    }
 
     /* ------------------------------ Bind buttons ---------------------------- */
     document.addEventListener('DOMContentLoaded', () => {
@@ -606,6 +689,7 @@
     window.addEventListener('error', (e) => {
       console.error('[Cafe] Uncaught error:', e.error || e.message);
     });
+    
     window.addEventListener('unhandledrejection', (e)=> {
       console.warn('[Cafe] Unhandled promise rejection:', e.reason);
     });
@@ -617,7 +701,14 @@
     });
 
     document.getElementById('searchInput')?.addEventListener('input', () => renderMenu());
-    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeWifiModal(); closeCart(); closeSuccessModal(); } });
+    
+    document.addEventListener('keydown', (e)=>{ 
+      if(e.key==='Escape'){ 
+        closeWifiModal(); 
+        closeCart(); 
+        closeSuccessModal(); 
+      } 
+    });
 
     /* --------------------------------- Init -------------------------------- */
     document.addEventListener('DOMContentLoaded', () => {
@@ -630,7 +721,7 @@
       // Ensure first open is clean & autofill-proof
       clearCustomerFields();
       randomizeFieldNames();
-      lucide.createIcons();
+      createLucideIcons(); // Use safe function instead of direct lucide.createIcons()
       placeBaskets();
     });
   </script>
