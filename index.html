@@ -2,13 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta
+    http-equiv="Cache-Control"
+    content="no-cache, no-store, must-revalidate"
+  />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>The Daily Grind & Dough Co. — Digital Menu</title>
-  <!-- Load Lucide Icons first -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Version tag to verify in DevTools console -->
+  <script>window.APP_VERSION="index-v3.1-no-redirect"; console.log("[Cafe] Loaded", window.APP_VERSION);</script>
+
+  <!-- Load Lucide Icons first (add cache-bust) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js?v=3.1"></script>
+  <script src="https://cdn.tailwindcss.com?v=3.1"></script>
   <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=3.1"></script>
+
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -40,6 +51,42 @@
     const SUPABASE_URL  = "https://ihanajfastlgsqrrbmef.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloYW5hamZhc3RsZ3NxcnJibWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5OTg5MDMsImV4cCI6MjA3NzU3NDkwM30.FKcKzjeVf7bO6zDwPjRG70cLI0ca7C9PFhzjwOQUs0A";
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    /* ---------------------- Fail-safe: block admin redirects -------------------- */
+    (function hardBlockAdminRedirect(){
+      const blocker = (url) => {
+        if (!url) return false;
+        return /(^|\/)admin\.html(\?|#|$)/i.test(String(url));
+      };
+
+      const _assign = window.location.assign.bind(window.location);
+      const _replace = window.location.replace.bind(window.location);
+
+      window.location.assign = (u)=> {
+        if (blocker(u)) { console.warn("[Cafe] Blocked redirect to admin.html via assign"); return; }
+        _assign(u);
+      };
+      window.location.replace = (u)=> {
+        if (blocker(u)) { console.warn("[Cafe] Blocked redirect to admin.html via replace"); return; }
+        _replace(u);
+      };
+
+      const _href = Object.getOwnPropertyDescriptor(Location.prototype, "href");
+      Object.defineProperty(window.location, "href", {
+        set(v){
+          if (blocker(v)) { console.warn("[Cafe] Blocked redirect to admin.html via href"); return; }
+          _href.set.call(window.location, v);
+        },
+        get(){ return _href.get.call(window.location); }
+      });
+
+      // Also guard window.open calls
+      const _open = window.open;
+      window.open = function(u, ...rest){
+        if (blocker(u)) { console.warn("[Cafe] Blocked window.open('admin.html')"); return null; }
+        return _open.call(window, u, ...rest);
+      };
+    })();
   </script>
 
   <link id="dynamic-favicon" rel="icon" type="image/png" href="" />
@@ -250,15 +297,9 @@
       });
     };
 
-    // Safe Lucide icons creation with error handling
     function createLucideIcons() {
-      try {
-        if (typeof lucide !== 'undefined' && lucide.createIcons) {
-          lucide.createIcons();
-        }
-      } catch (error) {
-        console.warn('Lucide icons not available:', error);
-      }
+      try { if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons(); }
+      catch (e) { console.warn('Lucide icons not available:', e); }
     }
 
     /* ------------------------------- Menu Data ------------------------------ */
@@ -298,7 +339,6 @@
     let cart = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
     function persistCart(){ localStorage.setItem(CART_KEY, JSON.stringify(cart)); }
 
-    // Force-clear customer fields + defeat autofill
     function clearCustomerFields() {
       ['customerName','tableNumber','orderNotes'].forEach(id => {
         const el = document.getElementById(id);
@@ -320,7 +360,6 @@
       });
     }
 
-    // Strong clear: memory + storage + input fields
     function clearCartHard() {
       cart = [];
       localStorage.removeItem(CART_KEY);
@@ -330,7 +369,6 @@
       renderMenu();
     }
 
-    /* ------------------------ Cart qty helper (NEW) ------------------------- */
     function getItemQty(itemId) {
       const it = cart.find(i => i.id === itemId);
       return it ? it.quantity : 0;
@@ -347,7 +385,7 @@
       wrap.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => { activeCategory = btn.dataset.cat; renderCategoryTabs(); renderMenu(); }));
     }
 
-    /* ---------------------- Homepage menu (UPDATED) ------------------------- */
+    /* ---------------------- Homepage menu (qty toggles) --------------------- */
     function renderMenu() {
       const container = document.getElementById('menuContainer');
       const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
@@ -409,7 +447,7 @@
       }).join('');
 
       container.innerHTML = html || '<p class="text-center text-gray-500">No matching items.</p>';
-      createLucideIcons(); // Use safe function instead of direct lucide.createIcons()
+      createLucideIcons();
       placeBaskets();
     }
 
@@ -418,29 +456,20 @@
       const item = menuCategories.flatMap(c => c.items).find(i => i.id === itemId);
       if (!item) return;
       const existing = cart.find(i => i.id === itemId);
-      if (existing) {
-        existing.quantity += 1;
-      } else {
-        cart.push({ ...item, quantity: 1 });
-      }
+      if (existing) existing.quantity += 1; else cart.push({ ...item, quantity: 1 });
       persistCart();
       updateCartUI();
-      renderMenu(); // Refresh homepage to show quantity controls
+      renderMenu();
     }
 
     function updateQuantity(itemId, change) {
       const idx = cart.findIndex(i => i.id === itemId);
       if (idx === -1) return;
-
       cart[idx].quantity += change;
-
-      if (cart[idx].quantity <= 0) {
-        cart.splice(idx, 1);
-      }
-
+      if (cart[idx].quantity <= 0) cart.splice(idx, 1);
       persistCart();
       updateCartUI();
-      renderMenu(); // Refresh homepage to update quantity or revert to Add button
+      renderMenu();
     }
 
     function removeFromCart(itemId) {
@@ -457,8 +486,8 @@
       renderMenu();
     }
 
-    function getSubtotal() {
-      return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    function getSubtotal() { 
+      return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0); 
     }
 
     function updateCartUI() {
@@ -529,20 +558,15 @@
         payCounterBtn.classList.remove('hidden');
         clearCartBtn.classList.remove('hidden');
 
-        createLucideIcons(); // Use safe function instead of direct lucide.createIcons()
+        createLucideIcons();
       }
 
       placeBaskets();
     }
 
     /* -------------------------- Cart overlay helpers ------------------------ */
-    function toggleCart() {
-      document.getElementById('cartOverlay').classList.toggle('hidden');
-    }
-
-    function closeCart() {
-      document.getElementById('cartOverlay').classList.add('hidden');
-    }
+    function toggleCart() { document.getElementById('cartOverlay').classList.toggle('hidden'); }
+    function closeCart()  { document.getElementById('cartOverlay').classList.add('hidden');  }
 
     /* ---------------------------- Wi-Fi modal UI ---------------------------- */
     function openWifiModal(){
@@ -551,10 +575,7 @@
       document.getElementById('wifiModal').classList.remove('hidden');
       createLucideIcons();
     }
-
-    function closeWifiModal(){
-      document.getElementById('wifiModal').classList.add('hidden');
-    }
+    function closeWifiModal(){ document.getElementById('wifiModal').classList.add('hidden'); }
 
     /* ----------------------------- Order builder ---------------------------- */
     function createOrder(paymentMethod) {
@@ -576,7 +597,7 @@
       const tax = Math.round((subtotal + svc) * 0.05);
       const total = subtotal + svc + tax;
 
-      const order = {
+      return {
         id: `ORD-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
         customerName: name,
         tableNumber: table,
@@ -585,12 +606,8 @@
         totals: { subtotal, svc, tax, total },
         timestamp: new Date().toISOString(),
         status: 'new',
-        payment: {
-          method: paymentMethod,
-          status: 'pending'
-        }
+        payment: { method: paymentMethod, status: 'pending' }
       };
-      return order;
     }
 
     /* ------------------------ Submit -> Supabase insert ---------------------- */
@@ -605,7 +622,6 @@
       });
     }
 
-    // NO REDIRECT version
     async function submitOrder(order) {
       if (isSubmitting) return;
       isSubmitting = true;
@@ -623,10 +639,8 @@
         return;
       }
 
-      // Clear cart + inputs to prevent duplicates and autofill ghosts
       clearCartHard();
 
-      // Post-insert UI (no redirect)
       try {
         document.getElementById('modalOrderId').textContent = '#' + order.id.slice(-8);
         document.getElementById('modalTable').textContent   = order.tableNumber;
@@ -642,9 +656,7 @@
       }
     }
 
-    function closeSuccessModal() {
-      document.getElementById('successModal').classList.add('hidden');
-    }
+    function closeSuccessModal() { document.getElementById('successModal').classList.add('hidden'); }
 
     /* ------------------------------ Bind buttons ---------------------------- */
     document.addEventListener('DOMContentLoaded', () => {
@@ -655,10 +667,9 @@
           if (isSubmitting) return;
           if (cart.length === 0) { alert('Cart is empty'); return; }
           const o = createOrder(method);
-          if (o) await submitOrder(o); // no redirect path
+          if (o) await submitOrder(o); // never redirects
         });
       };
-      // BOTH buttons now do NOT redirect
       bindPay('payCounterBtn', 'counter');
       bindPay('paymentBtn',    'online');
     });
@@ -679,29 +690,12 @@
     }
 
     /* ----------------------------- Misc handlers ---------------------------- */
-    window.addEventListener('error', (e) => {
-      console.error('[Cafe] Uncaught error:', e.error || e.message);
-    });
+    window.addEventListener('error', (e) => { console.error('[Cafe] Uncaught error:', e.error || e.message); });
+    window.addEventListener('unhandledrejection', (e)=> { console.warn('[Cafe] Unhandled promise rejection:', e.reason); });
 
-    window.addEventListener('unhandledrejection', (e)=> {
-      console.warn('[Cafe] Unhandled promise rejection:', e.reason);
-    });
-
-    // When returning via back/restore, keep inputs/cart blank and names randomized
-    window.addEventListener('pageshow', () => {
-      clearCustomerFields();
-      randomizeFieldNames();
-    });
-
+    window.addEventListener('pageshow', () => { clearCustomerFields(); randomizeFieldNames(); });
     document.getElementById('searchInput')?.addEventListener('input', () => renderMenu());
-
-    document.addEventListener('keydown', (e)=>{ 
-      if(e.key==='Escape'){ 
-        closeWifiModal(); 
-        closeCart(); 
-        closeSuccessModal(); 
-      } 
-    });
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeWifiModal(); closeCart(); closeSuccessModal(); } });
 
     /* --------------------------------- Init -------------------------------- */
     document.addEventListener('DOMContentLoaded', () => {
@@ -711,7 +705,6 @@
       renderCategoryTabs();
       renderMenu();
       updateCartUI();
-      // Ensure first open is clean & autofill-proof
       clearCustomerFields();
       randomizeFieldNames();
       createLucideIcons();
