@@ -2,29 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    http-equiv="Cache-Control"
-    content="no-cache, no-store, must-revalidate"
-  />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>The Daily Grind & Dough Co. — Digital Menu</title>
-
-  <!-- Version tag to verify in DevTools console -->
-  <script>window.APP_VERSION="index-v3.1-no-redirect"; console.log("[Cafe] Loaded", window.APP_VERSION);</script>
-
-  <!-- Load Lucide Icons first (add cache-bust) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js?v=3.1"></script>
-  <script src="https://cdn.tailwindcss.com?v=3.1"></script>
+  <!-- Load Lucide Icons first -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
   <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=3.1"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
     .btn-disabled { opacity: .6; pointer-events: none; }
+    .error-text { font-size: 12px; color: #dc2626; margin-top: 4px; display:none; }
+    .has-error { outline: none; box-shadow: 0 0 0 2px #fecaca; border-color:#ef4444 !important; }
   </style>
 
   <script>
@@ -51,42 +42,6 @@
     const SUPABASE_URL  = "https://ihanajfastlgsqrrbmef.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloYW5hamZhc3RsZ3NxcnJibWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5OTg5MDMsImV4cCI6MjA3NzU3NDkwM30.FKcKzjeVf7bO6zDwPjRG70cLI0ca7C9PFhzjwOQUs0A";
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
-    /* ---------------------- Fail-safe: block admin redirects -------------------- */
-    (function hardBlockAdminRedirect(){
-      const blocker = (url) => {
-        if (!url) return false;
-        return /(^|\/)admin\.html(\?|#|$)/i.test(String(url));
-      };
-
-      const _assign = window.location.assign.bind(window.location);
-      const _replace = window.location.replace.bind(window.location);
-
-      window.location.assign = (u)=> {
-        if (blocker(u)) { console.warn("[Cafe] Blocked redirect to admin.html via assign"); return; }
-        _assign(u);
-      };
-      window.location.replace = (u)=> {
-        if (blocker(u)) { console.warn("[Cafe] Blocked redirect to admin.html via replace"); return; }
-        _replace(u);
-      };
-
-      const _href = Object.getOwnPropertyDescriptor(Location.prototype, "href");
-      Object.defineProperty(window.location, "href", {
-        set(v){
-          if (blocker(v)) { console.warn("[Cafe] Blocked redirect to admin.html via href"); return; }
-          _href.set.call(window.location, v);
-        },
-        get(){ return _href.get.call(window.location); }
-      });
-
-      // Also guard window.open calls
-      const _open = window.open;
-      window.open = function(u, ...rest){
-        if (blocker(u)) { console.warn("[Cafe] Blocked window.open('admin.html')"); return null; }
-        return _open.call(window, u, ...rest);
-      };
-    })();
   </script>
 
   <link id="dynamic-favicon" rel="icon" type="image/png" href="" />
@@ -180,37 +135,59 @@
         <!-- Autofill-resistant customer form -->
         <div id="customerForm" class="hidden space-y-3 mb-6" autocomplete="off">
           <div class="grid grid-cols-2 gap-3">
-            <input
-              type="text"
-              id="customerName"
-              placeholder="Your Name"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="none"
-              spellcheck="false"
-              class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-            >
-            <input
-              type="text"
-              id="tableNumber"
-              placeholder="Table Number (or Takeaway)"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="none"
-              spellcheck="false"
-              class="col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-            >
+            <div class="col-span-2">
+              <input
+                type="text"
+                id="customerName"
+                placeholder="Your Name"
+                inputmode="text"
+                pattern="[A-Za-z .'-]{2,40}"
+                maxlength="40"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="words"
+                spellcheck="false"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                title="Only letters, spaces, . ' - (2–40 characters)"
+              >
+              <div id="errName" class="error-text">Name must be letters/spaces only (2–40 chars).</div>
+            </div>
+
+            <div class="col-span-2">
+              <input
+                type="text"
+                id="tableNumber"
+                placeholder="Table Number (1–999)"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="3"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                spellcheck="false"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                title="Enter an integer between 1 and 999"
+              >
+              <div id="errTable" class="error-text">Table number must be an integer (1–999).</div>
+            </div>
+
+            <div class="col-span-2">
+              <textarea
+                id="orderNotes"
+                rows="2"
+                placeholder="Add a note (letters/punctuation, max 200 chars)"
+                inputmode="text"
+                maxlength="200"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="sentences"
+                spellcheck="false"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                title="Notes must be text (not numbers only), up to 200 characters"
+              ></textarea>
+              <div id="errNotes" class="error-text">Notes must be text (not only digits), up to 200 characters.</div>
+            </div>
           </div>
-          <textarea
-            id="orderNotes"
-            rows="2"
-            placeholder="Add a note (no onions, extra hot, etc.)"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="none"
-            spellcheck="false"
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          ></textarea>
         </div>
 
         <div class="flex items-center justify-between mb-4">
@@ -298,8 +275,13 @@
     };
 
     function createLucideIcons() {
-      try { if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons(); }
-      catch (e) { console.warn('Lucide icons not available:', e); }
+      try {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+          lucide.createIcons();
+        }
+      } catch (error) {
+        console.warn('Lucide icons not available:', error);
+      }
     }
 
     /* ------------------------------- Menu Data ------------------------------ */
@@ -339,6 +321,7 @@
     let cart = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
     function persistCart(){ localStorage.setItem(CART_KEY, JSON.stringify(cart)); }
 
+    // Clear & defeat autofill
     function clearCustomerFields() {
       ['customerName','tableNumber','orderNotes'].forEach(id => {
         const el = document.getElementById(id);
@@ -385,7 +368,7 @@
       wrap.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => { activeCategory = btn.dataset.cat; renderCategoryTabs(); renderMenu(); }));
     }
 
-    /* ---------------------- Homepage menu (qty toggles) --------------------- */
+    /* ---------------------- Homepage menu (UPDATED) ------------------------- */
     function renderMenu() {
       const container = document.getElementById('menuContainer');
       const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
@@ -456,7 +439,11 @@
       const item = menuCategories.flatMap(c => c.items).find(i => i.id === itemId);
       if (!item) return;
       const existing = cart.find(i => i.id === itemId);
-      if (existing) existing.quantity += 1; else cart.push({ ...item, quantity: 1 });
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cart.push({ ...item, quantity: 1 });
+      }
       persistCart();
       updateCartUI();
       renderMenu();
@@ -465,8 +452,13 @@
     function updateQuantity(itemId, change) {
       const idx = cart.findIndex(i => i.id === itemId);
       if (idx === -1) return;
+
       cart[idx].quantity += change;
-      if (cart[idx].quantity <= 0) cart.splice(idx, 1);
+
+      if (cart[idx].quantity <= 0) {
+        cart.splice(idx, 1);
+      }
+
       persistCart();
       updateCartUI();
       renderMenu();
@@ -486,8 +478,8 @@
       renderMenu();
     }
 
-    function getSubtotal() { 
-      return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0); 
+    function getSubtotal() {
+      return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     }
 
     function updateCartUI() {
@@ -564,9 +556,64 @@
       placeBaskets();
     }
 
+    /* ----------------------- Validation helpers (NEW) ----------------------- */
+    const NAME_RE  = /^[A-Za-z][A-Za-z .'-]{1,39}$/;     // 2–40 chars, letters/spaces/.'-
+    const TABLE_RE = /^(?:[1-9]\d{0,2})$/;               // 1–999
+    const NOTES_RE = /^(?!\d+$).{0,200}$/;               // up to 200, not digits-only
+
+    function showErr(el, errEl, msg){
+      if (el){ el.classList.add('has-error'); }
+      if (errEl){ errEl.textContent = msg; errEl.style.display='block'; }
+    }
+    function clearErr(el, errEl){
+      if (el){ el.classList.remove('has-error'); }
+      if (errEl){ errEl.style.display='none'; }
+    }
+
+    function liveFilters(){
+      const nameEl  = document.getElementById('customerName');
+      const tableEl = document.getElementById('tableNumber');
+      const notesEl = document.getElementById('orderNotes');
+
+      // Hard-filter typing:
+      nameEl?.addEventListener('input', () => {
+        // allow letters, space, period, apostrophe, hyphen; collapse spaces
+        const cleaned = (nameEl.value || '').replace(/[^A-Za-z .'-]/g,'').replace(/\s{2,}/g,' ');
+        if (cleaned !== nameEl.value) nameEl.value = cleaned;
+      });
+
+      tableEl?.addEventListener('input', () => {
+        // numeric only, strip non-digits and clamp to 3 digits
+        let cleaned = (tableEl.value || '').replace(/\D/g,'').slice(0,3);
+        // trim leading zeros
+        cleaned = cleaned.replace(/^0+/, '');
+        tableEl.value = cleaned;
+      });
+
+      notesEl?.addEventListener('input', () => {
+        // limit length and normalize whitespace
+        let v = (notesEl.value || '').slice(0,200).replace(/\s{2,}/g,' ');
+        notesEl.value = v;
+      });
+
+      // Clear errors on focus
+      const map = [
+        [nameEl,  document.getElementById('errName')],
+        [tableEl, document.getElementById('errTable')],
+        [notesEl, document.getElementById('errNotes')],
+      ];
+      map.forEach(([el, err]) => {
+        el?.addEventListener('focus', ()=> clearErr(el, err));
+      });
+    }
+
     /* -------------------------- Cart overlay helpers ------------------------ */
-    function toggleCart() { document.getElementById('cartOverlay').classList.toggle('hidden'); }
-    function closeCart()  { document.getElementById('cartOverlay').classList.add('hidden');  }
+    function toggleCart() {
+      document.getElementById('cartOverlay').classList.toggle('hidden');
+    }
+    function closeCart() {
+      document.getElementById('cartOverlay').classList.add('hidden');
+    }
 
     /* ---------------------------- Wi-Fi modal UI ---------------------------- */
     function openWifiModal(){
@@ -575,20 +622,46 @@
       document.getElementById('wifiModal').classList.remove('hidden');
       createLucideIcons();
     }
-    function closeWifiModal(){ document.getElementById('wifiModal').classList.add('hidden'); }
+    function closeWifiModal(){
+      document.getElementById('wifiModal').classList.add('hidden');
+    }
 
     /* ----------------------------- Order builder ---------------------------- */
     function createOrder(paymentMethod) {
-      const name = document.getElementById('customerName').value.trim();
-      const table = document.getElementById('tableNumber').value.trim();
-      const notes = document.getElementById('orderNotes').value.trim();
+      const nameEl   = document.getElementById('customerName');
+      const tableEl  = document.getElementById('tableNumber');
+      const notesEl  = document.getElementById('orderNotes');
 
-      if (!name || !table) {
-        const nameEl  = document.getElementById('customerName');
-        const tableEl = document.getElementById('tableNumber');
-        if (!name)  { nameEl.classList.add('ring-2','ring-red-500'); setTimeout(()=>nameEl.classList.remove('ring-2','ring-red-500'), 1200); }
-        if (!table) { tableEl.classList.add('ring-2','ring-red-500'); setTimeout(()=>tableEl.classList.remove('ring-2','ring-red-500'), 1200); }
-        alert('Please enter your name and table number (or Takeaway).');
+      const errName  = document.getElementById('errName');
+      const errTable = document.getElementById('errTable');
+      const errNotes = document.getElementById('errNotes');
+
+      const name  = (nameEl.value || '').trim();
+      const table = (tableEl.value || '').trim();
+      const notes = (notesEl.value || '').trim();
+
+      // Clear prior errors
+      clearErr(nameEl, errName);
+      clearErr(tableEl, errTable);
+      clearErr(notesEl, errNotes);
+
+      // Validate
+      let ok = true;
+      if (!NAME_RE.test(name)) {
+        showErr(nameEl, errName, "Name must be letters/spaces only (2–40 chars).");
+        ok = false;
+      }
+      if (!TABLE_RE.test(table)) {
+        showErr(tableEl, errTable, "Table number must be an integer from 1 to 999.");
+        ok = false;
+      }
+      if (notes.length > 0 && !NOTES_RE.test(notes)) {
+        showErr(notesEl, errNotes, "Notes must be text (not digits-only), up to 200 characters.");
+        ok = false;
+      }
+
+      if (!ok) {
+        alert("Please correct the highlighted fields:\n\n• Name: letters/spaces only (2–40)\n• Table: integer 1–999\n• Notes: text, not numbers-only (max 200)");
         return null;
       }
 
@@ -597,17 +670,21 @@
       const tax = Math.round((subtotal + svc) * 0.05);
       const total = subtotal + svc + tax;
 
-      return {
+      const order = {
         id: `ORD-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
         customerName: name,
-        tableNumber: table,
+        tableNumber: parseInt(table,10),
         notes,
         items: cart.map(item => ({...item})),
         totals: { subtotal, svc, tax, total },
         timestamp: new Date().toISOString(),
         status: 'new',
-        payment: { method: paymentMethod, status: 'pending' }
+        payment: {
+          method: paymentMethod,
+          status: 'pending'
+        }
       };
+      return order;
     }
 
     /* ------------------------ Submit -> Supabase insert ---------------------- */
@@ -622,6 +699,7 @@
       });
     }
 
+    // NO REDIRECT version
     async function submitOrder(order) {
       if (isSubmitting) return;
       isSubmitting = true;
@@ -639,8 +717,10 @@
         return;
       }
 
+      // Clear cart + inputs to prevent duplicates and autofill ghosts
       clearCartHard();
 
+      // Post-insert UI (no redirect)
       try {
         document.getElementById('modalOrderId').textContent = '#' + order.id.slice(-8);
         document.getElementById('modalTable').textContent   = order.tableNumber;
@@ -656,7 +736,9 @@
       }
     }
 
-    function closeSuccessModal() { document.getElementById('successModal').classList.add('hidden'); }
+    function closeSuccessModal() {
+      document.getElementById('successModal').classList.add('hidden');
+    }
 
     /* ------------------------------ Bind buttons ---------------------------- */
     document.addEventListener('DOMContentLoaded', () => {
@@ -667,9 +749,10 @@
           if (isSubmitting) return;
           if (cart.length === 0) { alert('Cart is empty'); return; }
           const o = createOrder(method);
-          if (o) await submitOrder(o); // never redirects
+          if (o) await submitOrder(o); // no redirect path
         });
       };
+      // BOTH buttons do NOT redirect
       bindPay('payCounterBtn', 'counter');
       bindPay('paymentBtn',    'online');
     });
@@ -690,12 +773,29 @@
     }
 
     /* ----------------------------- Misc handlers ---------------------------- */
-    window.addEventListener('error', (e) => { console.error('[Cafe] Uncaught error:', e.error || e.message); });
-    window.addEventListener('unhandledrejection', (e)=> { console.warn('[Cafe] Unhandled promise rejection:', e.reason); });
+    window.addEventListener('error', (e) => {
+      console.error('[Cafe] Uncaught error:', e.error || e.message);
+    });
 
-    window.addEventListener('pageshow', () => { clearCustomerFields(); randomizeFieldNames(); });
+    window.addEventListener('unhandledrejection', (e)=> {
+      console.warn('[Cafe] Unhandled promise rejection:', e.reason);
+    });
+
+    // When returning via back/restore, keep inputs/cart blank and names randomized
+    window.addEventListener('pageshow', () => {
+      clearCustomerFields();
+      randomizeFieldNames();
+    });
+
     document.getElementById('searchInput')?.addEventListener('input', () => renderMenu());
-    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeWifiModal(); closeCart(); closeSuccessModal(); } });
+
+    document.addEventListener('keydown', (e)=>{ 
+      if(e.key==='Escape'){ 
+        closeWifiModal(); 
+        closeCart(); 
+        closeSuccessModal(); 
+      } 
+    });
 
     /* --------------------------------- Init -------------------------------- */
     document.addEventListener('DOMContentLoaded', () => {
@@ -705,10 +805,13 @@
       renderCategoryTabs();
       renderMenu();
       updateCartUI();
+      // Ensure first open is clean & autofill-proof
       clearCustomerFields();
       randomizeFieldNames();
       createLucideIcons();
       placeBaskets();
+      // NEW: start live input filters
+      liveFilters();
     });
   </script>
 </body>
